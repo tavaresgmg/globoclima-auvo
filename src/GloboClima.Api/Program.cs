@@ -15,7 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 // Configure JWT Authentication
-var jwtSecret = builder.Configuration["JwtSettings:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
+var jwtSecret = builder.Configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
 var key = Encoding.ASCII.GetBytes(jwtSecret);
 
 builder.Services.AddAuthentication(x =>
@@ -32,9 +32,9 @@ builder.Services.AddAuthentication(x =>
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(key),
         ValidateIssuer = true,
-        ValidIssuer = builder.Configuration["JwtSettings:Issuer"] ?? "GloboClima",
+        ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "GloboClima",
         ValidateAudience = true,
-        ValidAudience = builder.Configuration["JwtSettings:Audience"] ?? "GloboClima",
+        ValidAudience = builder.Configuration["Jwt:Audience"] ?? "GloboClima",
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero
     };
