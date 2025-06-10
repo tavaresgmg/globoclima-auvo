@@ -1,0 +1,35 @@
+# CODEOWNERS for GloboClima
+
+# Global owners (will be requested for review on all changes)
+* @guilhermetavares
+
+# Backend (.NET)
+/src/GloboClima.Api/ @guilhermetavares
+/src/GloboClima.Application/ @guilhermetavares
+/src/GloboClima.Domain/ @guilhermetavares
+/src/GloboClima.Infrastructure/ @guilhermetavares
+
+# Frontend (Blazor)
+/src/GloboClima.Web/ @guilhermetavares
+
+# Tests
+/tests/ @guilhermetavares
+
+# Infrastructure
+/infrastructure/ @guilhermetavares
+*.tf @guilhermetavares
+*.tfvars @guilhermetavares
+
+# CI/CD
+/.github/workflows/ @guilhermetavares
+Dockerfile @guilhermetavares
+.dockerignore @guilhermetavares
+
+# Documentation
+*.md @guilhermetavares
+/docs/ @guilhermetavares
+
+# Dependencies
+*.csproj @guilhermetavares
+*.sln @guilhermetavares
+package*.json @guilhermetavares

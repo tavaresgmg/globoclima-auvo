@@ -1,0 +1,483 @@
+@page "/countries"
+@inject ApiService ApiService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+@implements IDisposable
+
+<PageTitle>Países - GloboClima</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-12">
+            <h1 class="mb-4">🌍 Informações de Países</h1>
+            
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Pesquisar País</h5>
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <input type="text" class="form-control form-control-lg" 
+                                   placeholder="Digite o nome do país ou código (ex: BR, Brasil)..." 
+                                   @bind="searchQuery" 
+                                   @bind:event="oninput"
+                                   @onkeyup="@(() => DebounceSearch())"
+                                   disabled="@isLoading" />
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select form-select-lg" @bind="filterRegion" @bind:after="ApplyFilter">
+                                <option value="">Todas as Regiões</option>
+                                <option value="Africa">África</option>
+                                <option value="Americas">Américas</option>
+                                <option value="Asia">Ásia</option>
+                                <option value="Europe">Europa</option>
+                                <option value="Oceania">Oceania</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+                    <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                </div>
+            }
+            
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                    <p class="mt-2">Buscando países...</p>
+                </div>
+            }
+            else if (displayedCountries.Any())
+            {
+                <div class="row g-4 mb-4">
+                    @foreach (var country in displayedCountries)
+                    {
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100 country-card">
+                                <div class="card-header text-center">
+                                    <img src="@country.Flags.Png" alt="@($"Bandeira de {country.Name.Common}")" 
+                                         class="country-flag mb-2" />
+                                    <h5 class="card-title mb-0">@country.Name.Common</h5>
+                                    <small class="text-muted">@country.Name.Official</small>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-unstyled mb-0">
+                                        <li><strong>Capital:</strong> @(country.Capital?.FirstOrDefault() ?? "N/A")</li>
+                                        <li><strong>Região:</strong> @country.Region</li>
+                                        <li><strong>Sub-região:</strong> @(country.Subregion ?? "N/A")</li>
+                                        <li><strong>População:</strong> @country.Population.ToString("N0")</li>
+                                        <li><strong>Área:</strong> @country.Area.ToString("N0") km²</li>
+                                        <li>
+                                            <strong>Idiomas:</strong> 
+                                            @string.Join(", ", country.Languages.Take(3).Select(l => l.Value))
+                                            @if (country.Languages.Count > 3)
+                                            {
+                                                <span>...</span>
+                                            }
+                                        </li>
+                                        <li>
+                                            <strong>Moedas:</strong> 
+                                            @string.Join(", ", country.Currencies.Take(2).Select(c => $"{c.Value.Name} ({c.Value.Symbol})"))
+                                        </li>
+                                    </ul>
+                                    
+                                    <AuthorizeView>
+                                        <Authorized>
+                                            @{
+                                                var isFav = IsFavorite(country.Cca2);
+                                            }
+                                            @if (isFav)
+                                            {
+                                                <button class="btn btn-danger btn-sm w-100 mt-3" 
+                                                        @onclick="() => RemoveFromFavorites(country)" 
+                                                        disabled="@isProcessingFavorite">
+                                                    <i class="bi bi-heart-fill"></i> Remover dos Favoritos
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-outline-danger btn-sm w-100 mt-3" 
+                                                        @onclick="() => AddToFavorites(country)" 
+                                                        disabled="@isProcessingFavorite">
+                                                    <i class="bi bi-heart"></i> Adicionar aos Favoritos
+                                                </button>
+                                            }
+                                        </Authorized>
+                                    </AuthorizeView>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                
+                @if (totalPages > 1)
+                {
+                    <nav aria-label="Navegação de páginas">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                <button class="page-link" @onclick="() => ChangePage(currentPage - 1)">
+                                    Anterior
+                                </button>
+                            </li>
+                            @for (int i = 1; i <= Math.Min(totalPages, 5); i++)
+                            {
+                                var pageNum = i;
+                                <li class="page-item @(currentPage == pageNum ? "active" : "")">
+                                    <button class="page-link" @onclick="() => ChangePage(pageNum)">
+                                        @pageNum
+                                    </button>
+                                </li>
+                            }
+                            <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                <button class="page-link" @onclick="() => ChangePage(currentPage + 1)">
+                                    Próximo
+                                </button>
+                            </li>
+                        </ul>
+                    </nav>
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> Nenhum país encontrado com o termo "@searchQuery"
+                </div>
+            }
+            
+            <AuthorizeView>
+                <Authorized>
+                    <div class="card mt-4">
+                        <div class="card-body">
+                            <h5 class="card-title mb-3"><i class="bi bi-heart-fill text-danger"></i> Países Favoritos</h5>
+                            
+                            @if (isLoadingFavorites)
+                            {
+                                <div class="text-center py-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Carregando favoritos...</span>
+                                    </div>
+                                </div>
+                            }
+                            else if (favorites.Any())
+                            {
+                                <div class="row g-3">
+                                    @foreach (var favorite in favorites)
+                                    {
+                                        <div class="col-md-4 col-lg-3">
+                                            <div class="card h-100 favorite-card">
+                                                <div class="card-body text-center">
+                                                    <h6 class="card-title mb-1">@favorite.CountryName</h6>
+                                                    <small class="text-muted d-block">@favorite.Region</small>
+                                                    <small class="text-muted d-block mb-2">
+                                                        Adicionado em @favorite.AddedAt.ToString("dd/MM/yyyy")
+                                                    </small>
+                                                    <button class="btn btn-sm btn-primary" 
+                                                            @onclick="() => SearchByCode(favorite.CountryCode)">
+                                                        <i class="bi bi-search"></i> Ver Detalhes
+                                                    </button>
+                                                    <button class="btn btn-sm btn-link text-danger" 
+                                                            @onclick="() => DeleteFavorite(favorite.Id)" 
+                                                            title="Remover favorito">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-muted mb-0">
+                                    Você ainda não tem países favoritos. Pesquise um país e adicione aos favoritos!
+                                </p>
+                            }
+                        </div>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </div>
+</div>
+
+<style>
+    .country-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .country-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .country-flag {
+        width: 100%;
+        max-width: 150px;
+        height: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .favorite-card:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+</style>
+
+@code {
+    private string searchQuery = string.Empty;
+    private string filterRegion = string.Empty;
+    private List<CountryResponse> allCountries = new();
+    private List<CountryResponse> filteredCountries = new();
+    private List<CountryResponse> displayedCountries = new();
+    private List<CountryFavoriteResponseDto> favorites = new();
+    private bool isLoading = false;
+    private bool isLoadingFavorites = false;
+    private bool isProcessingFavorite = false;
+    private string errorMessage = string.Empty;
+    private AuthenticationState? authState;
+    private Timer? debounceTimer;
+    
+    private int currentPage = 1;
+    private int pageSize = 12;
+    private int totalPages = 1;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        
+        await LoadAllCountries();
+        
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            await LoadFavorites();
+        }
+    }
+    
+    private async Task LoadAllCountries()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        
+        try
+        {
+            var result = await ApiService.GetAsync<List<CountryResponse>>("api/countries/search?name=");
+            allCountries = result ?? new List<CountryResponse>();
+            filteredCountries = allCountries;
+            UpdateDisplayedCountries();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao carregar países. Tente novamente mais tarde.";
+            Console.WriteLine($"Load countries error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    
+    private void DebounceSearch()
+    {
+        debounceTimer?.Dispose();
+        debounceTimer = new Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await SearchCountries();
+                StateHasChanged();
+            });
+        }, null, 500, Timeout.Infinite);
+    }
+    
+    private async Task SearchCountries()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            filteredCountries = allCountries;
+        }
+        else
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+            
+            try
+            {
+                // Tentar buscar por código primeiro
+                if (searchQuery.Length == 2 || searchQuery.Length == 3)
+                {
+                    var countryByCode = await ApiService.GetAsync<CountryResponse>($"api/countries/{searchQuery}");
+                    if (countryByCode != null)
+                    {
+                        filteredCountries = new List<CountryResponse> { countryByCode };
+                    }
+                    else
+                    {
+                        // Se não encontrou por código, buscar por nome
+                        var result = await ApiService.GetAsync<List<CountryResponse>>($"api/countries/search?name={Uri.EscapeDataString(searchQuery)}");
+                        filteredCountries = result ?? new List<CountryResponse>();
+                    }
+                }
+                else
+                {
+                    // Buscar por nome
+                    var result = await ApiService.GetAsync<List<CountryResponse>>($"api/countries/search?name={Uri.EscapeDataString(searchQuery)}");
+                    filteredCountries = result ?? new List<CountryResponse>();
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMessage = "Erro ao buscar países.";
+                Console.WriteLine($"Search error: {ex.Message}");
+                filteredCountries = new List<CountryResponse>();
+            }
+            finally
+            {
+                isLoading = false;
+            }
+        }
+        
+        ApplyFilter();
+    }
+    
+    private async Task SearchByCode(string code)
+    {
+        searchQuery = code;
+        await SearchCountries();
+    }
+    
+    private void ApplyFilter()
+    {
+        if (!string.IsNullOrEmpty(filterRegion))
+        {
+            filteredCountries = filteredCountries
+                .Where(c => c.Region.Equals(filterRegion, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+        
+        currentPage = 1;
+        UpdateDisplayedCountries();
+    }
+    
+    private void UpdateDisplayedCountries()
+    {
+        totalPages = (int)Math.Ceiling(filteredCountries.Count / (double)pageSize);
+        var skip = (currentPage - 1) * pageSize;
+        displayedCountries = filteredCountries.Skip(skip).Take(pageSize).ToList();
+    }
+    
+    private void ChangePage(int page)
+    {
+        if (page >= 1 && page <= totalPages)
+        {
+            currentPage = page;
+            UpdateDisplayedCountries();
+        }
+    }
+    
+    private async Task LoadFavorites()
+    {
+        isLoadingFavorites = true;
+        
+        try
+        {
+            var result = await ApiService.GetAsync<List<CountryFavoriteResponseDto>>("api/countries/favorites");
+            favorites = result ?? new List<CountryFavoriteResponseDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading favorites: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingFavorites = false;
+        }
+    }
+    
+    private bool IsFavorite(string countryCode)
+    {
+        return favorites.Any(f => f.CountryCode.Equals(countryCode, StringComparison.OrdinalIgnoreCase));
+    }
+    
+    private async Task AddToFavorites(CountryResponse country)
+    {
+        isProcessingFavorite = true;
+        
+        try
+        {
+            var request = new CountryFavoriteRequestDto
+            {
+                CountryCode = country.Cca2,
+                CountryName = country.Name.Common,
+                Region = country.Region
+            };
+            
+            var result = await ApiService.PostAsync<CountryFavoriteRequestDto, CountryFavoriteResponseDto>
+                ("api/countries/favorites", request);
+            
+            if (result != null)
+            {
+                favorites.Add(result);
+                await JS.InvokeVoidAsync("alert", "País adicionado aos favoritos!");
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao adicionar aos favoritos.";
+            Console.WriteLine($"Add favorite error: {ex.Message}");
+        }
+        finally
+        {
+            isProcessingFavorite = false;
+        }
+    }
+    
+    private async Task RemoveFromFavorites(CountryResponse country)
+    {
+        var favorite = favorites.FirstOrDefault(f => 
+            f.CountryCode.Equals(country.Cca2, StringComparison.OrdinalIgnoreCase));
+            
+        if (favorite != null)
+        {
+            await DeleteFavorite(favorite.Id);
+        }
+    }
+    
+    private async Task DeleteFavorite(Guid id)
+    {
+        isProcessingFavorite = true;
+        
+        try
+        {
+            var success = await ApiService.DeleteAsync($"api/countries/favorites/{id}");
+            
+            if (success)
+            {
+                favorites.RemoveAll(f => f.Id == id);
+                await JS.InvokeVoidAsync("alert", "País removido dos favoritos!");
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao remover dos favoritos.";
+            Console.WriteLine($"Delete favorite error: {ex.Message}");
+        }
+        finally
+        {
+            isProcessingFavorite = false;
+        }
+    }
+    
+    public void Dispose()
+    {
+        debounceTimer?.Dispose();
+    }
+}

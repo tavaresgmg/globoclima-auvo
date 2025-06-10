@@ -1,0 +1,126 @@
+@page "/login"
+@layout GloboClima.Web.Components.Layout.BlankLayout
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Login - GloboClima</PageTitle>
+
+<div class="container-fluid vh-100">
+    <div class="row h-100">
+        <div class="col-md-6 d-none d-md-flex bg-primary text-white p-5 align-items-center justify-content-center">
+            <div class="text-center">
+                <h1 class="display-3 fw-bold mb-3">🌍 GloboClima</h1>
+                <p class="lead">Consulte informações climáticas e dados de países em tempo real</p>
+                <ul class="list-unstyled mt-4">
+                    <li class="mb-2">✅ Previsão do tempo detalhada</li>
+                    <li class="mb-2">✅ Informações completas sobre países</li>
+                    <li class="mb-2">✅ Salve seus locais favoritos</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="col-md-6 d-flex align-items-center justify-content-center p-4">
+            <div class="w-100" style="max-width: 400px;">
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold">Bem-vindo de volta!</h2>
+                    <p class="text-muted">Entre com sua conta para continuar</p>
+                </div>
+                
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        @errorMessage
+                        <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                    </div>
+                }
+                
+                <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <InputText id="email" @bind-Value="loginModel.Email" 
+                                   class="form-control form-control-lg" 
+                                   placeholder="seu@email.com" 
+                                   disabled="@isLoading" />
+                        <ValidationMessage For="() => loginModel.Email" class="text-danger" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Senha</label>
+                        <InputText id="password" @bind-Value="loginModel.Password" 
+                                   type="password" 
+                                   class="form-control form-control-lg" 
+                                   placeholder="••••••••" 
+                                   disabled="@isLoading" />
+                        <ValidationMessage For="() => loginModel.Password" class="text-danger" />
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="rememberMe">
+                            <label class="form-check-label" for="rememberMe">
+                                Lembrar de mim
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg w-100 mb-3" disabled="@isLoading">
+                        @if (isLoading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            <span>Entrando...</span>
+                        }
+                        else
+                        {
+                            <span>Entrar</span>
+                        }
+                    </button>
+                </EditForm>
+                
+                <div class="text-center">
+                    <p class="mb-0">
+                        Não tem uma conta? 
+                        <a href="/register" class="text-decoration-none">Cadastre-se grátis</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginRequestDto loginModel = new();
+    private bool isLoading = false;
+    private string errorMessage = string.Empty;
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        
+        try
+        {
+            var success = await AuthService.LoginAsync(loginModel);
+            
+            if (success)
+            {
+                Navigation.NavigateTo("/", true);
+            }
+            else
+            {
+                errorMessage = "Email ou senha inválidos. Por favor, tente novamente.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao conectar com o servidor. Tente novamente mais tarde.";
+            Console.WriteLine($"Login error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

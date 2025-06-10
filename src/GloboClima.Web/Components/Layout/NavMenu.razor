@@ -1,0 +1,78 @@
+﻿@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">🌍 GloboClima</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <i class="bi bi-house-door-fill me-2"></i> Início
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="weather">
+                <i class="bi bi-cloud-sun-fill me-2"></i> Clima
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="countries">
+                <i class="bi bi-globe me-2"></i> Países
+            </NavLink>
+        </div>
+
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="favorites">
+                        <i class="bi bi-heart-fill me-2"></i> Favoritos
+                    </NavLink>
+                </div>
+                
+                <div class="nav-item px-3 mt-auto user-info">
+                    <NavLink class="nav-link text-light" href="profile">
+                        <i class="bi bi-person-circle me-2"></i>
+                        <small>Olá, @context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</small>
+                    </NavLink>
+                </div>
+                
+                <div class="nav-item px-3">
+                    <button class="nav-link btn btn-link text-light w-100 text-start" @onclick="Logout">
+                        <i class="bi bi-box-arrow-right me-2"></i> Sair
+                    </button>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="nav-item px-3 mt-auto">
+                    <NavLink class="nav-link" href="login">
+                        <i class="bi bi-person-circle me-2"></i> Entrar
+                    </NavLink>
+                </div>
+                
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="register">
+                        <i class="bi bi-person-plus-fill me-2"></i> Cadastrar
+                    </NavLink>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </nav>
+</div>
+
+
+@code {
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login", true);
+    }
+}
+

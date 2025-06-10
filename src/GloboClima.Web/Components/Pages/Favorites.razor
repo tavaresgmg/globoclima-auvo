@@ -1,0 +1,212 @@
+@page "/favorites"
+@attribute [Authorize]
+@inject ApiService ApiService
+@inject NavigationManager Navigation
+
+<PageTitle>Favoritos - GloboClima</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-12">
+            <h1 class="mb-4">❤️ Meus Favoritos</h1>
+            
+            <ul class="nav nav-tabs mb-4" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="weather-tab" data-bs-toggle="tab" 
+                            data-bs-target="#weather-favorites" type="button" role="tab">
+                        <i class="bi bi-cloud-sun"></i> Cidades (@weatherFavorites.Count)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="countries-tab" data-bs-toggle="tab" 
+                            data-bs-target="#country-favorites" type="button" role="tab">
+                        <i class="bi bi-globe"></i> Países (@countryFavorites.Count)
+                    </button>
+                </li>
+            </ul>
+            
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="weather-favorites" role="tabpanel">
+                    @if (isLoadingWeather)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Carregando cidades favoritas...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (weatherFavorites.Any())
+                    {
+                        <div class="row g-4">
+                            @foreach (var favorite in weatherFavorites)
+                            {
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h5 class="card-title">@favorite.CityName, @favorite.CountryCode</h5>
+                                            <p class="text-muted small">
+                                                Adicionado em @favorite.AddedAt.ToString("dd/MM/yyyy HH:mm")
+                                            </p>
+                                            @if (favorite.Latitude.HasValue && favorite.Longitude.HasValue)
+                                            {
+                                                <p class="small">
+                                                    <i class="bi bi-geo-alt"></i> 
+                                                    @favorite.Latitude.Value.ToString("F2"), 
+                                                    @favorite.Longitude.Value.ToString("F2")
+                                                </p>
+                                            }
+                                            <div class="d-flex gap-2">
+                                                <button class="btn btn-primary btn-sm flex-fill" 
+                                                        @onclick="() => NavigateToWeather(favorite.CityName)">
+                                                    <i class="bi bi-cloud-sun"></i> Ver Clima
+                                                </button>
+                                                <button class="btn btn-danger btn-sm" 
+                                                        @onclick="() => DeleteWeatherFavorite(favorite.Id)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> 
+                            Você ainda não tem cidades favoritas. 
+                            <a href="/weather">Pesquise uma cidade</a> e adicione aos favoritos!
+                        </div>
+                    }
+                </div>
+                
+                <div class="tab-pane fade" id="country-favorites" role="tabpanel">
+                    @if (isLoadingCountries)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Carregando países favoritos...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (countryFavorites.Any())
+                    {
+                        <div class="row g-4">
+                            @foreach (var favorite in countryFavorites)
+                            {
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h5 class="card-title">@favorite.CountryName</h5>
+                                            <p class="text-muted small">
+                                                @favorite.Region<br/>
+                                                Adicionado em @favorite.AddedAt.ToString("dd/MM/yyyy HH:mm")
+                                            </p>
+                                            <p class="small">
+                                                <i class="bi bi-flag"></i> Código: @favorite.CountryCode
+                                            </p>
+                                            <div class="d-flex gap-2">
+                                                <button class="btn btn-success btn-sm flex-fill" 
+                                                        @onclick="() => NavigateToCountry(favorite.CountryCode)">
+                                                    <i class="bi bi-globe"></i> Ver Detalhes
+                                                </button>
+                                                <button class="btn btn-danger btn-sm" 
+                                                        @onclick="() => DeleteCountryFavorite(favorite.Id)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> 
+                            Você ainda não tem países favoritos. 
+                            <a href="/countries">Explore países</a> e adicione aos favoritos!
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<WeatherFavoriteResponseDto> weatherFavorites = new();
+    private List<CountryFavoriteResponseDto> countryFavorites = new();
+    private bool isLoadingWeather = true;
+    private bool isLoadingCountries = true;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWeatherFavorites();
+        await LoadCountryFavorites();
+    }
+    
+    private async Task LoadWeatherFavorites()
+    {
+        try
+        {
+            var result = await ApiService.GetAsync<List<WeatherFavoriteResponseDto>>("api/weather/favorites");
+            weatherFavorites = result ?? new List<WeatherFavoriteResponseDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading weather favorites: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingWeather = false;
+        }
+    }
+    
+    private async Task LoadCountryFavorites()
+    {
+        try
+        {
+            var result = await ApiService.GetAsync<List<CountryFavoriteResponseDto>>("api/countries/favorites");
+            countryFavorites = result ?? new List<CountryFavoriteResponseDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading country favorites: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingCountries = false;
+        }
+    }
+    
+    private void NavigateToWeather(string cityName)
+    {
+        Navigation.NavigateTo($"/weather?city={Uri.EscapeDataString(cityName)}");
+    }
+    
+    private void NavigateToCountry(string countryCode)
+    {
+        Navigation.NavigateTo($"/countries?code={Uri.EscapeDataString(countryCode)}");
+    }
+    
+    private async Task DeleteWeatherFavorite(Guid id)
+    {
+        if (await ApiService.DeleteAsync($"api/weather/favorites/{id}"))
+        {
+            weatherFavorites.RemoveAll(f => f.Id == id);
+            StateHasChanged();
+        }
+    }
+    
+    private async Task DeleteCountryFavorite(Guid id)
+    {
+        if (await ApiService.DeleteAsync($"api/countries/favorites/{id}"))
+        {
+            countryFavorites.RemoveAll(f => f.Id == id);
+            StateHasChanged();
+        }
+    }
+}

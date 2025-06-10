@@ -1,0 +1,169 @@
+@page "/register"
+@layout GloboClima.Web.Components.Layout.BlankLayout
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Cadastro - GloboClima</PageTitle>
+
+<div class="container-fluid vh-100">
+    <div class="row h-100">
+        <div class="col-md-6 d-none d-md-flex bg-success text-white p-5 align-items-center justify-content-center">
+            <div class="text-center">
+                <h1 class="display-3 fw-bold mb-3">🌍 Junte-se ao GloboClima</h1>
+                <p class="lead">Acesse informações climáticas e dados de países de todo o mundo</p>
+                <ul class="list-unstyled mt-4">
+                    <li class="mb-2">✅ Totalmente gratuito</li>
+                    <li class="mb-2">✅ Dados em tempo real</li>
+                    <li class="mb-2">✅ Salve seus favoritos</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="col-md-6 d-flex align-items-center justify-content-center p-4">
+            <div class="w-100" style="max-width: 400px;">
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold">Criar sua conta</h2>
+                    <p class="text-muted">Preencha os dados para começar</p>
+                </div>
+                
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        @errorMessage
+                        <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                    </div>
+                }
+                
+                @if (registrationSuccess)
+                {
+                    <div class="alert alert-success" role="alert">
+                        <h4 class="alert-heading">Cadastro realizado com sucesso!</h4>
+                        <p>Você será redirecionado para a página inicial...</p>
+                    </div>
+                }
+                else
+                {
+                    <EditForm Model="registerModel" OnValidSubmit="HandleRegister">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label for="firstName" class="form-label">Nome</label>
+                                <InputText id="firstName" @bind-Value="registerModel.FirstName" 
+                                           class="form-control" 
+                                           placeholder="João"
+                                           disabled="@isLoading" />
+                                <ValidationMessage For="() => registerModel.FirstName" class="text-danger" />
+                            </div>
+                            <div class="col">
+                                <label for="lastName" class="form-label">Sobrenome</label>
+                                <InputText id="lastName" @bind-Value="registerModel.LastName" 
+                                           class="form-control" 
+                                           placeholder="Silva"
+                                           disabled="@isLoading" />
+                                <ValidationMessage For="() => registerModel.LastName" class="text-danger" />
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <InputText id="email" @bind-Value="registerModel.Email" 
+                                       class="form-control" 
+                                       placeholder="seu@email.com"
+                                       disabled="@isLoading" />
+                            <ValidationMessage For="() => registerModel.Email" class="text-danger" />
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Senha</label>
+                            <InputText id="password" @bind-Value="registerModel.Password" 
+                                       type="password" 
+                                       class="form-control" 
+                                       placeholder="Mínimo 6 caracteres"
+                                       disabled="@isLoading" />
+                            <ValidationMessage For="() => registerModel.Password" class="text-danger" />
+                            <div class="form-text">A senha deve ter no mínimo 6 caracteres</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">Confirmar Senha</label>
+                            <InputText id="confirmPassword" @bind-Value="registerModel.ConfirmPassword" 
+                                       type="password" 
+                                       class="form-control" 
+                                       placeholder="Digite a senha novamente"
+                                       disabled="@isLoading" />
+                            <ValidationMessage For="() => registerModel.ConfirmPassword" class="text-danger" />
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="terms" required>
+                                <label class="form-check-label" for="terms">
+                                    Aceito os <a href="#" class="text-decoration-none">termos de uso</a> e 
+                                    <a href="#" class="text-decoration-none">política de privacidade</a>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success btn-lg w-100 mb-3" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                <span>Criando conta...</span>
+                            }
+                            else
+                            {
+                                <span>Criar conta</span>
+                            }
+                        </button>
+                    </EditForm>
+                    
+                    <div class="text-center">
+                        <p class="mb-0">
+                            Já tem uma conta? 
+                            <a href="/login" class="text-decoration-none">Entre aqui</a>
+                        </p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterRequestDto registerModel = new();
+    private bool isLoading = false;
+    private string errorMessage = string.Empty;
+    private bool registrationSuccess = false;
+
+    private async Task HandleRegister()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+        
+        try
+        {
+            var success = await AuthService.RegisterAsync(registerModel);
+            
+            if (success)
+            {
+                registrationSuccess = true;
+                await Task.Delay(2000);
+                Navigation.NavigateTo("/", true);
+            }
+            else
+            {
+                errorMessage = "Este email já está cadastrado. Tente fazer login ou use outro email.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao criar conta. Por favor, tente novamente.";
+            Console.WriteLine($"Registration error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

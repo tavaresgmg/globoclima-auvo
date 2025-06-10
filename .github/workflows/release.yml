@@ -1,0 +1,170 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    name: Create Release
+    
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Get version
+      id: version
+      run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+    - name: Generate changelog
+      id: changelog
+      uses: mikepenz/release-changelog-builder-action@v4
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ steps.version.outputs.version }}
+        body: ${{ steps.changelog.outputs.changelog }}
+        draft: false
+        prerelease: false
+        
+  build-artifacts:
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    name: Build ${{ matrix.target }}
+    
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+            artifact: globoclima-linux-x64
+          - os: windows-latest
+            target: win-x64
+            artifact: globoclima-win-x64
+          - os: macos-latest
+            target: osx-x64
+            artifact: globoclima-osx-x64
+            
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Build API
+      run: |
+        cd src/GloboClima.Api
+        dotnet publish -c Release -r ${{ matrix.target }} --self-contained -p:PublishSingleFile=true -o dist/
+        
+    - name: Build Web
+      run: |
+        cd src/GloboClima.Web
+        dotnet publish -c Release -r ${{ matrix.target }} --self-contained -p:PublishSingleFile=true -o dist/
+        
+    - name: Create archive
+      run: |
+        mkdir -p release/${{ matrix.artifact }}
+        cp -r src/GloboClima.Api/dist/* release/${{ matrix.artifact }}/
+        cp -r src/GloboClima.Web/dist/* release/${{ matrix.artifact }}/
+        cp README.md release/${{ matrix.artifact }}/
+        
+    - name: Package (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: |
+        cd release
+        tar -czf ${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}
+        
+    - name: Package (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        cd release
+        Compress-Archive -Path ${{ matrix.artifact }} -DestinationPath ${{ matrix.artifact }}.zip
+        
+    - name: Upload Release Asset (Linux/macOS)
+      if: runner.os != 'Windows'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./release/${{ matrix.artifact }}.tar.gz
+        asset_name: ${{ matrix.artifact }}.tar.gz
+        asset_content_type: application/gzip
+        
+    - name: Upload Release Asset (Windows)
+      if: runner.os == 'Windows'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./release/${{ matrix.artifact }}.zip
+        asset_name: ${{ matrix.artifact }}.zip
+        asset_content_type: application/zip
+        
+  docker-release:
+    needs: create-release
+    runs-on: ubuntu-latest
+    name: Docker Release
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+        
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/globoclima:${{ needs.create-release.outputs.version }}
+          ${{ secrets.DOCKER_USERNAME }}/globoclima:latest
+          ghcr.io/${{ github.repository }}:${{ needs.create-release.outputs.version }}
+          ghcr.io/${{ github.repository }}:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

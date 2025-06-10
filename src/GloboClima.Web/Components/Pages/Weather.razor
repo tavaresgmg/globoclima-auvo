@@ -1,0 +1,481 @@
+﻿@page "/weather"
+@inject ApiService ApiService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+
+<PageTitle>Clima - GloboClima</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-12">
+            <h1 class="mb-4">🌤️ Previsão do Tempo</h1>
+            
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Pesquisar Cidade</h5>
+                    <form @onsubmit="SearchWeather" @onsubmit:preventDefault="true">
+                        <div class="row g-3">
+                            <div class="col-md-8 position-relative">
+                                <input type="text" class="form-control form-control-lg" 
+                                       placeholder="Digite o nome da cidade (ex: São Paulo, Salvador, Rio de Janeiro)..." 
+                                       @bind="searchQuery" 
+                                       @oninput="OnSearchInput"
+                                       disabled="@isLoading"
+                                       autocomplete="off" />
+                                       
+                                @if (citySuggestions.Any() && showSuggestions)
+                                {
+                                    <div class="suggestions-dropdown">
+                                        @foreach (var suggestion in citySuggestions.Take(5))
+                                        {
+                                            <div class="suggestion-item" @onclick="() => SelectSuggestion(suggestion)">
+                                                <i class="bi bi-geo-alt me-2"></i>
+                                                <span>@suggestion</span>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-primary btn-lg w-100" disabled="@isLoading">
+                                    @if (isLoading)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                        <span>Buscando...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-search"></i><span> Buscar</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+                    <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                </div>
+            }
+            
+            @if (currentWeather != null)
+            {
+                <div class="card mb-4 weather-result-card">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h2 class="mb-3">@currentWeather.Name, @currentWeather.Sys.Country</h2>
+                                <div class="d-flex align-items-center mb-3">
+                                    <img src="@($"https://openweathermap.org/img/wn/{currentWeather.Weather.FirstOrDefault()?.Icon ?? "01d"}@2x.png")" 
+                                         alt="@currentWeather.Weather.FirstOrDefault()?.Description" 
+                                         class="weather-icon" />
+                                    <div>
+                                        <h1 class="display-4 mb-0">@Math.Round(currentWeather.Main.Temp)°C</h1>
+                                        <p class="text-muted mb-0">@currentWeather.Weather.FirstOrDefault()?.Description</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="weather-details">
+                                    <div class="row g-3">
+                                        <div class="col-6">
+                                            <div class="weather-detail-item">
+                                                <i class="bi bi-thermometer-half text-danger"></i>
+                                                <span>Sensação Térmica</span>
+                                                <strong>@Math.Round(currentWeather.Main.FeelsLike)°C</strong>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="weather-detail-item">
+                                                <i class="bi bi-droplet-fill text-primary"></i>
+                                                <span>Umidade</span>
+                                                <strong>@currentWeather.Main.Humidity%</strong>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="weather-detail-item">
+                                                <i class="bi bi-wind text-info"></i>
+                                                <span>Vento</span>
+                                                <strong>@Math.Round(currentWeather.Wind.Speed * 3.6) km/h</strong>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="weather-detail-item">
+                                                <i class="bi bi-speedometer text-warning"></i>
+                                                <span>Pressão</span>
+                                                <strong>@currentWeather.Main.Pressure hPa</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <AuthorizeView>
+                                    <Authorized>
+                                        @if (isFavorite)
+                                        {
+                                            <button class="btn btn-danger mt-3" @onclick="RemoveFromFavorites" disabled="@isProcessingFavorite">
+                                                <i class="bi bi-heart-fill"></i> Remover dos Favoritos
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-outline-danger mt-3" @onclick="AddToFavorites" disabled="@isProcessingFavorite">
+                                                <i class="bi bi-heart"></i> Adicionar aos Favoritos
+                                            </button>
+                                        }
+                                    </Authorized>
+                                </AuthorizeView>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            
+            <AuthorizeView>
+                <Authorized>
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title mb-3"><i class="bi bi-heart-fill text-danger"></i> Cidades Favoritas</h5>
+                            
+                            @if (isLoadingFavorites)
+                            {
+                                <div class="text-center py-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Carregando favoritos...</span>
+                                    </div>
+                                </div>
+                            }
+                            else if (favorites.Any())
+                            {
+                                <div class="row g-3">
+                                    @foreach (var favorite in favorites)
+                                    {
+                                        <div class="col-md-6 col-lg-4">
+                                            <div class="card h-100 favorite-card">
+                                                <div class="card-body">
+                                                    <div class="d-flex justify-content-between align-items-start">
+                                                        <div>
+                                                            <h6 class="card-title mb-1">@favorite.CityName, @favorite.CountryCode</h6>
+                                                            <small class="text-muted">Adicionado em @favorite.AddedAt.ToString("dd/MM/yyyy")</small>
+                                                        </div>
+                                                        <button class="btn btn-sm btn-link text-danger" 
+                                                                @onclick="() => DeleteFavorite(favorite.Id)" 
+                                                                title="Remover favorito">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                    <button class="btn btn-sm btn-primary mt-2" 
+                                                            @onclick="() => LoadWeatherForFavorite(favorite.CityName)">
+                                                        <i class="bi bi-cloud-sun"></i> Ver Clima
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-muted mb-0">Você ainda não tem cidades favoritas. Pesquise uma cidade e adicione aos favoritos!</p>
+                            }
+                        </div>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </div>
+</div>
+
+<style>
+    .weather-result-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .weather-icon {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .weather-detail-item {
+        text-align: center;
+        padding: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+    }
+    
+    .weather-detail-item i {
+        font-size: 1.5rem;
+        display: block;
+        margin-bottom: 5px;
+    }
+    
+    .weather-detail-item span {
+        display: block;
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+    
+    .weather-detail-item strong {
+        display: block;
+        font-size: 1.2rem;
+    }
+    
+    .favorite-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transition: box-shadow 0.3s;
+    }
+    
+    .suggestions-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    
+    .suggestion-item {
+        padding: 12px 16px;
+        cursor: pointer;
+        border-bottom: 1px solid #f8f9fa;
+        display: flex;
+        align-items: center;
+        transition: background-color 0.2s;
+    }
+    
+    .suggestion-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .suggestion-item:last-child {
+        border-bottom: none;
+    }
+    
+    .suggestion-item i {
+        color: #6c757d;
+    }
+</style>
+
+@code {
+    private string searchQuery = string.Empty;
+    private WeatherResponse? currentWeather;
+    private List<WeatherFavoriteResponseDto> favorites = new();
+    private bool isLoading = false;
+    private bool isLoadingFavorites = false;
+    private bool isProcessingFavorite = false;
+    private bool isFavorite = false;
+    private string errorMessage = string.Empty;
+    private AuthenticationState? authState;
+    private List<string> citySuggestions = new();
+    private bool showSuggestions = false;
+    
+    // Lista de cidades populares para sugestões
+    private readonly List<string> popularCities = new()
+    {
+        "São Paulo", "Rio de Janeiro", "Brasília", "Salvador", "Fortaleza",
+        "Belo Horizonte", "Manaus", "Curitiba", "Recife", "Goiânia",
+        "Belém", "Porto Alegre", "Guarulhos", "Campinas", "São Luís",
+        "São Gonçalo", "Maceió", "Duque de Caxias", "Campo Grande", "Natal",
+        "Teresina", "Nova Iguaçu", "São Bernardo do Campo", "João Pessoa", "Osasco",
+        "Santo André", "Jaboatão dos Guararapes", "Contagem", "São José dos Campos", "Uberlândia",
+        "Sorocaba", "Aracaju", "Feira de Santana", "Cuiabá", "Joinville",
+        "Juiz de Fora", "Londrina", "Aparecida de Goiânia", "Niterói", "Ananindeua",
+        "Porto Velho", "Serra", "Caxias do Sul", "Vila Velha", "Florianópolis",
+        "Macapá", "Campos dos Goytacazes", "São José do Rio Preto", "Mauá", "Carapicuíba",
+        "Olinda", "Campina Grande", "São José dos Pinhais", "Mogi das Cruzes", "Diadema",
+        "Cariacica", "Bauru", "Jundiaí", "Piracicaba", "Franca"
+    };
+    
+    protected override async Task OnInitializedAsync()
+    {
+        authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            await LoadFavorites();
+        }
+    }
+    
+    private async Task SearchWeather()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            errorMessage = "Por favor, digite o nome de uma cidade.";
+            return;
+        }
+        
+        isLoading = true;
+        errorMessage = string.Empty;
+        
+        try
+        {
+            currentWeather = await ApiService.GetAsync<WeatherResponse>($"api/weather/{Uri.EscapeDataString(searchQuery)}");
+            
+            if (currentWeather == null)
+            {
+                errorMessage = "Cidade não encontrada. Verifique o nome e tente novamente.";
+            }
+            else
+            {
+                await CheckIfFavorite();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao buscar dados do clima. Tente novamente mais tarde.";
+            Console.WriteLine($"Weather search error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    
+    private async Task LoadWeatherForFavorite(string cityName)
+    {
+        searchQuery = cityName;
+        await SearchWeather();
+    }
+    
+    private async Task LoadFavorites()
+    {
+        isLoadingFavorites = true;
+        
+        try
+        {
+            var result = await ApiService.GetAsync<List<WeatherFavoriteResponseDto>>("api/weather/favorites");
+            favorites = result ?? new List<WeatherFavoriteResponseDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading favorites: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingFavorites = false;
+        }
+    }
+    
+    private Task CheckIfFavorite()
+    {
+        if (currentWeather != null && authState?.User.Identity?.IsAuthenticated == true)
+        {
+            isFavorite = favorites.Any(f => f.CityName.Equals(currentWeather.Name, StringComparison.OrdinalIgnoreCase));
+        }
+        return Task.CompletedTask;
+    }
+    
+    private async Task AddToFavorites()
+    {
+        if (currentWeather == null) return;
+        
+        isProcessingFavorite = true;
+        
+        try
+        {
+            var request = new WeatherFavoriteRequestDto
+            {
+                CityName = currentWeather.Name,
+                CountryCode = currentWeather.Sys.Country,
+                Latitude = currentWeather.Coord.Lat,
+                Longitude = currentWeather.Coord.Lon
+            };
+            
+            var result = await ApiService.PostAsync<WeatherFavoriteRequestDto, WeatherFavoriteResponseDto>
+                ("api/weather/favorites", request);
+            
+            if (result != null)
+            {
+                favorites.Add(result);
+                isFavorite = true;
+                await JS.InvokeVoidAsync("alert", "Cidade adicionada aos favoritos!");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao adicionar aos favoritos.";
+            Console.WriteLine($"Add favorite error: {ex.Message}");
+        }
+        finally
+        {
+            isProcessingFavorite = false;
+        }
+    }
+    
+    private async Task RemoveFromFavorites()
+    {
+        if (currentWeather == null) return;
+        
+        var favorite = favorites.FirstOrDefault(f => 
+            f.CityName.Equals(currentWeather.Name, StringComparison.OrdinalIgnoreCase));
+            
+        if (favorite != null)
+        {
+            await DeleteFavorite(favorite.Id);
+        }
+    }
+    
+    private async Task DeleteFavorite(Guid id)
+    {
+        isProcessingFavorite = true;
+        
+        try
+        {
+            var success = await ApiService.DeleteAsync($"api/weather/favorites/{id}");
+            
+            if (success)
+            {
+                favorites.RemoveAll(f => f.Id == id);
+                isFavorite = false;
+                await JS.InvokeVoidAsync("alert", "Cidade removida dos favoritos!");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao remover dos favoritos.";
+            Console.WriteLine($"Delete favorite error: {ex.Message}");
+        }
+        finally
+        {
+            isProcessingFavorite = false;
+        }
+    }
+    
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        searchQuery = value;
+        
+        if (string.IsNullOrWhiteSpace(value) || value.Length < 2)
+        {
+            citySuggestions.Clear();
+            showSuggestions = false;
+            return;
+        }
+        
+        citySuggestions = popularCities
+            .Where(city => city.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(city => city.IndexOf(value, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+            
+        showSuggestions = citySuggestions.Any();
+        StateHasChanged();
+    }
+    
+    private async Task SelectSuggestion(string suggestion)
+    {
+        searchQuery = suggestion;
+        citySuggestions.Clear();
+        showSuggestions = false;
+        await SearchWeather();
+    }
+}

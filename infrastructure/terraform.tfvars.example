@@ -1,0 +1,11 @@
+# AWS Configuration
+aws_region = "us-east-1"
+environment = "production"
+
+# Docker Images (updated by CI/CD)
+api_image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/globoclima-api:latest"
+web_image_uri = "123456789012.dkr.ecr.us-east-1.amazonaws.com/globoclima-web:latest"
+
+# Secrets (set via environment variables or AWS Secrets Manager)
+weather_api_key = "your-weather-api-key-here"
+jwt_secret = "your-jwt-secret-key-here"

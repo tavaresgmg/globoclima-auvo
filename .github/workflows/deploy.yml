@@ -1,0 +1,213 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  AWS_REGION: 'us-east-1'
+
+jobs:
+  deploy-staging:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event.inputs.environment == 'staging')
+    runs-on: ubuntu-latest
+    environment: staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: '1.7.0'
+        
+    - name: Build application
+      run: |
+        cd src/GloboClima.Api
+        dotnet publish -c Release -r linux-x64 --self-contained -o bin/Release/net8.0/linux-x64/publish
+        
+    - name: Deploy infrastructure
+      env:
+        TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+        TF_VAR_openweathermap_api_key: ${{ secrets.OPENWEATHERMAP_API_KEY }}
+      run: |
+        cd infrastructure/terraform
+        terraform init -backend-config="bucket=globoclima-terraform-state"
+        terraform workspace select staging || terraform workspace new staging
+        terraform apply -var-file="environments/staging.tfvars" -auto-approve
+        
+    - name: Get deployment outputs
+      id: terraform
+      run: |
+        cd infrastructure/terraform
+        echo "api_url=$(terraform output -raw api_gateway_url)" >> $GITHUB_OUTPUT
+        echo "lambda_function_name=$(terraform output -raw lambda_function_name)" >> $GITHUB_OUTPUT
+        
+    - name: Smoke test
+      run: |
+        API_URL="${{ steps.terraform.outputs.api_url }}"
+        echo "Testing API at: $API_URL"
+        
+        # Health check
+        response=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health")
+        if [ $response -ne 200 ]; then
+          echo "Health check failed with status: $response"
+          exit 1
+        fi
+        
+        # Swagger check
+        response=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/swagger")
+        if [ $response -ne 200 ]; then
+          echo "Swagger check failed with status: $response"
+          exit 1
+        fi
+        
+        echo "Smoke tests passed!"
+        
+    - name: Notify deployment
+      uses: 8398a7/action-slack@v3
+      if: always()
+      with:
+        status: ${{ job.status }}
+        text: 'Staging deployment ${{ job.status }}'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        
+  deploy-production:
+    if: github.event.inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    environment: production
+    needs: deploy-staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: '1.7.0'
+        
+    - name: Build application
+      run: |
+        cd src/GloboClima.Api
+        dotnet publish -c Release -r linux-x64 --self-contained -o bin/Release/net8.0/linux-x64/publish
+        
+    - name: Backup current state
+      run: |
+        cd infrastructure/terraform
+        terraform init -backend-config="bucket=globoclima-terraform-state"
+        terraform workspace select production || terraform workspace new production
+        terraform state pull > backup-$(date +%Y%m%d-%H%M%S).tfstate
+        
+    - name: Deploy infrastructure
+      id: deploy
+      env:
+        TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+        TF_VAR_openweathermap_api_key: ${{ secrets.OPENWEATHERMAP_API_KEY }}
+      run: |
+        cd infrastructure/terraform
+        terraform plan -var-file="environments/prod.tfvars" -out=tfplan
+        terraform apply tfplan
+        
+    - name: Get deployment outputs
+      id: terraform
+      run: |
+        cd infrastructure/terraform
+        echo "api_url=$(terraform output -raw api_gateway_url)" >> $GITHUB_OUTPUT
+        echo "lambda_function_name=$(terraform output -raw lambda_function_name)" >> $GITHUB_OUTPUT
+        
+    - name: Run integration tests
+      run: |
+        API_URL="${{ steps.terraform.outputs.api_url }}"
+        
+        # Test authentication
+        response=$(curl -X POST "$API_URL/api/auth/register" \
+          -H "Content-Type: application/json" \
+          -d '{"email":"test@example.com","password":"Test123!","name":"Test User"}' \
+          -s -o /dev/null -w "%{http_code}")
+        
+        if [ $response -ne 200 ] && [ $response -ne 409 ]; then
+          echo "Auth test failed with status: $response"
+          exit 1
+        fi
+        
+        # Test weather endpoint
+        response=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/api/weather/current?city=London")
+        if [ $response -ne 200 ] && [ $response -ne 401 ]; then
+          echo "Weather test failed with status: $response"
+          exit 1
+        fi
+        
+        echo "Integration tests passed!"
+        
+    - name: Monitor deployment
+      run: |
+        FUNCTION_NAME="${{ steps.terraform.outputs.lambda_function_name }}"
+        
+        # Check Lambda function errors in last 5 minutes
+        errors=$(aws logs filter-log-events \
+          --log-group-name "/aws/lambda/$FUNCTION_NAME" \
+          --start-time $(($(date +%s) * 1000 - 300000)) \
+          --filter-pattern "ERROR" \
+          --query 'events[].message' \
+          --output text | wc -l)
+          
+        if [ $errors -gt 10 ]; then
+          echo "High error rate detected: $errors errors in last 5 minutes"
+          exit 1
+        fi
+        
+        echo "Deployment monitoring passed!"
+        
+    - name: Rollback on failure
+      if: failure() && steps.deploy.outcome == 'success'
+      run: |
+        cd infrastructure/terraform
+        echo "Rolling back deployment..."
+        # Implement rollback logic here
+        # Could restore from backup state or previous version
+        
+    - name: Notify deployment
+      uses: 8398a7/action-slack@v3
+      if: always()
+      with:
+        status: ${{ job.status }}
+        text: 'Production deployment ${{ job.status }}'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow

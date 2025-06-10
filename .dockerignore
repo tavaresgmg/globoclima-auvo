@@ -1,0 +1,58 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# .NET
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+**/*.suo
+**/*.cache
+**/*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test results
+TestResults/
+coverage/
+*.trx
+*.coverage
+
+# Documentation
+docs/
+*.md
+LICENSE
+
+# CI/CD
+.github/
+infrastructure/
+scripts/
+
+# Build artifacts
+*.tar.gz
+*.zip
+
+# Local environment files
+.env
+.env.local
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+!example.tfvars

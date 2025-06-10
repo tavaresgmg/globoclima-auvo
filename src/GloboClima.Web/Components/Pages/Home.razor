@@ -1,0 +1,71 @@
+﻿@page "/"
+
+<PageTitle>GloboClima - Informações Climáticas e Países</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="text-center py-5">
+                <h1 class="display-4 fw-bold mb-3">🌍 Bem-vindo ao GloboClima</h1>
+                <p class="lead text-muted">
+                    Acesse informações climáticas em tempo real e dados detalhados sobre países de todo o mundo
+                </p>
+                
+                <AuthorizeView>
+                    <NotAuthorized>
+                        <div class="mt-4">
+                            <a href="/login" class="btn btn-primary btn-lg me-3">Entrar</a>
+                            <a href="/register" class="btn btn-outline-primary btn-lg">Criar Conta</a>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-5">
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="bi bi-cloud-sun-fill text-warning" style="font-size: 3rem;"></i>
+                    <h3 class="card-title mt-3">Previsão do Tempo</h3>
+                    <p class="card-text">
+                        Consulte a previsão do tempo atual e condições climáticas de qualquer cidade do mundo
+                    </p>
+                    <a href="/weather" class="btn btn-primary">Consultar Clima</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="bi bi-globe text-success" style="font-size: 3rem;"></i>
+                    <h3 class="card-title mt-3">Informações de Países</h3>
+                    <p class="card-text">
+                        Explore dados detalhados sobre países: população, idiomas, moedas e muito mais
+                    </p>
+                    <a href="/countries" class="btn btn-success">Explorar Países</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <AuthorizeView>
+        <Authorized>
+            <div class="row mt-5">
+                <div class="col-12">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h4>Seus Favoritos</h4>
+                            <p>Acesse rapidamente seus locais e países favoritos salvos</p>
+                            <a href="/favorites" class="btn btn-outline-primary">
+                                <i class="bi bi-heart-fill"></i> Ver Favoritos
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+</div>
