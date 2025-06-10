@@ -345,15 +345,52 @@ coverage/
 .terraform.lock.hcl
 terraform.tfvars
 
+# Lambda deployment packages
+infrastructure/lambda-deployment.zip
+*.zip
+lambda-*.zip
+
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+.vs/
+.vshistory/
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# Shell scripts (development only)
+*.sh
+deploy-*.sh
+run-*.sh
+build-*.sh
+setup-*.sh
+check-*.sh
+stop-*.sh
+
+# HTTP test files
+*.http
+*.rest
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.orig
+*~
+placeholder.txt
+
+# Claude/AI assistant files
+CLAUDE.md
+claude.md
+*-claude.*
+
+# Assembly info (auto-generated)
+AssemblyInfo.cs
 
 # Logs
 *.log

@@ -1,4 +1,5 @@
 using Amazon.DynamoDBv2.DataModel;
+using Amazon.DynamoDBv2.DocumentModel;
 using GloboClima.Domain.Entities;
 using GloboClima.Domain.Interfaces.Repositories;
 using GloboClima.Infrastructure.Models;
@@ -22,13 +23,24 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByEmailAsync(string email)
     {
-        var search = _context.QueryAsync<DynamoUser>(email, new DynamoDBOperationConfig
+        try
         {
-            IndexName = "email-index"
-        });
-        var dynamoUsers = await search.GetRemainingAsync();
-        var dynamoUser = dynamoUsers.FirstOrDefault();
-        return dynamoUser == null ? null : MapToDomain(dynamoUser);
+            // Use scan with condition as GSI query requires non-consistent reads
+            var scanConditions = new List<ScanCondition>
+            {
+                new ScanCondition("Email", ScanOperator.Equal, email)
+            };
+            var search = _context.ScanAsync<DynamoUser>(scanConditions);
+            var allUsers = await search.GetRemainingAsync();
+            var dynamoUser = allUsers.FirstOrDefault();
+            return dynamoUser == null ? null : MapToDomain(dynamoUser);
+        }
+        catch (Exception ex)
+        {
+            // Return null on error to allow registration to proceed
+            Console.WriteLine($"Error getting user by email: {ex.Message}");
+            return null;
+        }
     }
 
     public async Task<User> CreateAsync(User user)

@@ -19,7 +19,7 @@ public class DynamoDbContext
         
         var contextConfig = new DynamoDBContextConfig
         {
-            ConsistentRead = true
+            ConsistentRead = false // Cannot use consistent read with GSI
         };
         
         _context = new DynamoDBContext(_client, contextConfig);

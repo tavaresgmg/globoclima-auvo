@@ -3,6 +3,7 @@ using GloboClima.Application.Interfaces;
 using GloboClima.Domain.Entities;
 using GloboClima.Domain.Interfaces.Repositories;
 using GloboClima.Domain.Interfaces.Services;
+using GloboClima.Domain.Models.Country;
 
 namespace GloboClima.Application.UseCases;
 
@@ -15,6 +16,12 @@ public class CountryUseCase : ICountryUseCase
     {
         _countryService = countryService;
         _favoriteRepository = favoriteRepository;
+    }
+
+    public async Task<CountryResponse?> GetCountryByNameAsync(string name)
+    {
+        var countries = await _countryService.SearchCountriesByNameAsync(name);
+        return countries.FirstOrDefault();
     }
 
     public async Task<List<CountryFavoriteResponseDto>> GetFavoritesAsync(Guid userId)
