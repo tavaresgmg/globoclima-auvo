@@ -2,13 +2,13 @@ using Amazon.DynamoDBv2.DataModel;
 
 namespace GloboClima.Infrastructure.Models;
 
-[DynamoDBTable("auvo-users")]
+[DynamoDBTable("GloboClima-Users")]
 public class DynamoUser
 {
     [DynamoDBHashKey]
     public string Id { get; set; } = string.Empty;
     
-    [DynamoDBGlobalSecondaryIndexHashKey("EmailIndex")]
+    [DynamoDBGlobalSecondaryIndexHashKey("email-index")]
     [DynamoDBProperty("Email")]
     public string Email { get; set; } = string.Empty;
     

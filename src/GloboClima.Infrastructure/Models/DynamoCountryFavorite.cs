@@ -2,13 +2,13 @@ using Amazon.DynamoDBv2.DataModel;
 
 namespace GloboClima.Infrastructure.Models;
 
-[DynamoDBTable("auvo-country-favorites")]
+[DynamoDBTable("GloboClima-CountryFavorites")]
 public class DynamoCountryFavorite
 {
     [DynamoDBHashKey]
     public string Id { get; set; } = string.Empty;
     
-    [DynamoDBGlobalSecondaryIndexHashKey("UserIdIndex")]
+    [DynamoDBGlobalSecondaryIndexHashKey("userId-index")]
     [DynamoDBProperty("UserId")]
     public string UserId { get; set; } = string.Empty;
     

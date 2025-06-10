@@ -350,6 +350,14 @@ infrastructure/lambda-deployment.zip
 *.zip
 lambda-*.zip
 
+# Removed unnecessary files
+*.sh
+test-*.js
+**/InMemory*Repository.cs
+Function.cs.bak
+docker-compose*.yml
+**/publish/
+
 # IDE
 .vscode/
 .idea/

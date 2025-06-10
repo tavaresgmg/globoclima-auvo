@@ -2,13 +2,13 @@ using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.DocumentModel;
 using GloboClima.Domain.Entities;
 using GloboClima.Domain.Interfaces.Repositories;
+using GloboClima.Infrastructure.Models;
 
 namespace GloboClima.Infrastructure.Repositories;
 
 public class WeatherFavoriteRepository : IWeatherFavoriteRepository
 {
     private readonly DynamoDBContext _context;
-    private const string TableName = "GloboClima-WeatherFavorites";
 
     public WeatherFavoriteRepository(DynamoDbContext dynamoDbContext)
     {
@@ -17,32 +17,36 @@ public class WeatherFavoriteRepository : IWeatherFavoriteRepository
 
     public async Task<WeatherFavorite?> GetByIdAsync(Guid id)
     {
-        return await _context.LoadAsync<WeatherFavorite>(id);
+        var dynamoWeatherFavorite = await _context.LoadAsync<DynamoWeatherFavorite>(id.ToString());
+        return dynamoWeatherFavorite == null ? null : MapToDomain(dynamoWeatherFavorite);
     }
 
     public async Task<List<WeatherFavorite>> GetByUserIdAsync(Guid userId)
     {
-        var config = new DynamoDBOperationConfig
+        var queryConfig = new QueryConfig
         {
-            OverrideTableName = TableName,
             IndexName = "userId-index"
         };
 
-        var search = _context.QueryAsync<WeatherFavorite>(userId.ToString(), config);
-        return await search.GetRemainingAsync();
+        var search = _context.QueryAsync<DynamoWeatherFavorite>(userId.ToString(), queryConfig);
+        var dynamoFavorites = await search.GetRemainingAsync();
+        return dynamoFavorites.Select(MapToDomain).ToList();
     }
 
     public async Task<WeatherFavorite> CreateAsync(WeatherFavorite favorite)
     {
         favorite.Id = Guid.NewGuid();
         favorite.AddedAt = DateTime.UtcNow;
-        await _context.SaveAsync(favorite);
+        
+        var dynamoFavorite = MapToDynamo(favorite);
+        await _context.SaveAsync(dynamoFavorite);
+        
         return favorite;
     }
 
     public async Task DeleteAsync(Guid id)
     {
-        await _context.DeleteAsync<WeatherFavorite>(id);
+        await _context.DeleteAsync<DynamoWeatherFavorite>(id.ToString());
     }
 
     public async Task<bool> ExistsAsync(Guid userId, string cityName, string countryCode)
@@ -51,5 +55,33 @@ public class WeatherFavoriteRepository : IWeatherFavoriteRepository
         return favorites.Any(f => 
             f.CityName.Equals(cityName, StringComparison.OrdinalIgnoreCase) && 
             f.CountryCode.Equals(countryCode, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static WeatherFavorite MapToDomain(DynamoWeatherFavorite dynamoFavorite)
+    {
+        return new WeatherFavorite
+        {
+            Id = Guid.Parse(dynamoFavorite.Id),
+            UserId = Guid.Parse(dynamoFavorite.UserId),
+            CityName = dynamoFavorite.CityName,
+            CountryCode = dynamoFavorite.CountryCode,
+            Latitude = dynamoFavorite.Latitude,
+            Longitude = dynamoFavorite.Longitude,
+            AddedAt = dynamoFavorite.AddedAt
+        };
+    }
+
+    private static DynamoWeatherFavorite MapToDynamo(WeatherFavorite favorite)
+    {
+        return new DynamoWeatherFavorite
+        {
+            Id = favorite.Id.ToString(),
+            UserId = favorite.UserId.ToString(),
+            CityName = favorite.CityName,
+            CountryCode = favorite.CountryCode,
+            Latitude = favorite.Latitude,
+            Longitude = favorite.Longitude,
+            AddedAt = favorite.AddedAt
+        };
     }
 }

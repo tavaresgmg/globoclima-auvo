@@ -10,7 +10,7 @@ provider "aws" {
 
 # DynamoDB Tables
 resource "aws_dynamodb_table" "users" {
-  name = "auvo-users"
+  name = "GloboClima-Users"
   billing_mode = "PAY_PER_REQUEST"
   hash_key = "Id"
   attribute {
@@ -22,14 +22,14 @@ resource "aws_dynamodb_table" "users" {
     type = "S"
   }
   global_secondary_index {
-    name = "EmailIndex"
+    name = "email-index"
     hash_key = "Email"
     projection_type = "ALL"
   }
 }
 
 resource "aws_dynamodb_table" "weather_favorites" {
-  name = "auvo-weather-favorites"
+  name = "GloboClima-WeatherFavorites"
   billing_mode = "PAY_PER_REQUEST"
   hash_key = "Id"
   attribute {
@@ -41,14 +41,14 @@ resource "aws_dynamodb_table" "weather_favorites" {
     type = "S"
   }
   global_secondary_index {
-    name = "UserIdIndex"
+    name = "userId-index"
     hash_key = "UserId"
     projection_type = "ALL"
   }
 }
 
 resource "aws_dynamodb_table" "country_favorites" {
-  name = "auvo-country-favorites"
+  name = "GloboClima-CountryFavorites"
   billing_mode = "PAY_PER_REQUEST"
   hash_key = "Id"
   attribute {
@@ -60,7 +60,7 @@ resource "aws_dynamodb_table" "country_favorites" {
     type = "S"
   }
   global_secondary_index {
-    name = "UserIdIndex"
+    name = "userId-index"
     hash_key = "UserId"
     projection_type = "ALL"
   }

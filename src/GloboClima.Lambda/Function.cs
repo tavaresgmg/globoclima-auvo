@@ -15,6 +15,7 @@ using GloboClima.Application.DTOs.Auth;
 using GloboClima.Application.DTOs.Weather;
 using GloboClima.Application.DTOs.Country;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
 
@@ -24,6 +25,7 @@ public class Function
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<Function> _logger;
+    private readonly JsonSerializerOptions _jsonOptions;
 
     public Function()
     {
@@ -31,6 +33,14 @@ public class Function
         ConfigureServices(services);
         _serviceProvider = services.BuildServiceProvider();
         _logger = _serviceProvider.GetRequiredService<ILogger<Function>>();
+        
+        // Configure JSON serialization options for case-insensitive deserialization
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = false
+        };
     }
 
     private void ConfigureServices(IServiceCollection services)
@@ -108,6 +118,12 @@ public class Function
             response.StatusCode = result.StatusCode;
             response.Body = result.Body;
             
+            // Update content type if specified
+            if (!string.IsNullOrEmpty(result.ContentType))
+            {
+                response.Headers["Content-Type"] = result.ContentType;
+            }
+            
             return response;
         }
         catch (Exception ex)
@@ -116,13 +132,13 @@ public class Function
             return new APIGatewayProxyResponse
             {
                 StatusCode = 500,
-                Body = JsonSerializer.Serialize(new { error = "Internal server error" }),
+                Body = JsonSerializer.Serialize(new { error = "Internal server error" }, _jsonOptions),
                 Headers = new Dictionary<string, string> { { "Content-Type", "application/json" } }
             };
         }
     }
 
-    private async Task<(int StatusCode, string Body)> RouteRequest(APIGatewayProxyRequest request)
+    private async Task<(int StatusCode, string Body, string ContentType)> RouteRequest(APIGatewayProxyRequest request)
     {
         var path = request.Path?.ToLower() ?? "";
         var method = request.HttpMethod?.ToUpper() ?? "";
@@ -130,13 +146,18 @@ public class Function
         // Health check
         if (path == "/health")
         {
-            return (200, JsonSerializer.Serialize(new { status = "healthy", service = "GloboClima.Lambda" }));
+            return (200, JsonSerializer.Serialize(new { status = "healthy", service = "GloboClima.Lambda" }, _jsonOptions), "application/json");
         }
 
         // Swagger
-        if (path.StartsWith("/swagger"))
+        if (path == "/swagger" || path == "/swagger/")
         {
-            return (200, GetSwaggerJson());
+            return (200, GetSwaggerJson(), "application/json");
+        }
+        
+        if (path == "/swagger/index.html")
+        {
+            return (200, GetSwaggerHtml(), "text/html");
         }
 
         // Auth endpoints
@@ -157,31 +178,31 @@ public class Function
             return await HandleCountryEndpoints(request, path, method);
         }
 
-        return (404, JsonSerializer.Serialize(new { error = "Endpoint not found" }));
+        return (404, JsonSerializer.Serialize(new { error = "Endpoint not found" }, _jsonOptions), "application/json");
     }
 
-    private async Task<(int StatusCode, string Body)> HandleAuthEndpoints(APIGatewayProxyRequest request, string path, string method)
+    private async Task<(int StatusCode, string Body, string ContentType)> HandleAuthEndpoints(APIGatewayProxyRequest request, string path, string method)
     {
         var authUseCase = _serviceProvider.GetRequiredService<IAuthUseCase>();
 
         if (path == "/api/auth/register" && method == "POST")
         {
-            var registerRequest = JsonSerializer.Deserialize<RegisterRequestDto>(request.Body);
+            var registerRequest = JsonSerializer.Deserialize<RegisterRequestDto>(request.Body, _jsonOptions);
             var result = await authUseCase.RegisterAsync(registerRequest);
-            return result != null ? (201, JsonSerializer.Serialize(result)) : (400, JsonSerializer.Serialize(new { error = "Registration failed" }));
+            return result != null ? (201, JsonSerializer.Serialize(result, _jsonOptions), "application/json") : (400, JsonSerializer.Serialize(new { error = "Registration failed" }, _jsonOptions), "application/json");
         }
 
         if (path == "/api/auth/login" && method == "POST")
         {
-            var loginRequest = JsonSerializer.Deserialize<LoginRequestDto>(request.Body);
+            var loginRequest = JsonSerializer.Deserialize<LoginRequestDto>(request.Body, _jsonOptions);
             var result = await authUseCase.LoginAsync(loginRequest);
-            return result != null ? (200, JsonSerializer.Serialize(result)) : (401, JsonSerializer.Serialize(new { error = "Invalid credentials" }));
+            return result != null ? (200, JsonSerializer.Serialize(result, _jsonOptions), "application/json") : (401, JsonSerializer.Serialize(new { error = "Invalid credentials" }, _jsonOptions), "application/json");
         }
 
-        return (404, JsonSerializer.Serialize(new { error = "Auth endpoint not found" }));
+        return (404, JsonSerializer.Serialize(new { error = "Auth endpoint not found" }, _jsonOptions), "application/json");
     }
 
-    private async Task<(int StatusCode, string Body)> HandleWeatherEndpoints(APIGatewayProxyRequest request, string path, string method)
+    private async Task<(int StatusCode, string Body, string ContentType)> HandleWeatherEndpoints(APIGatewayProxyRequest request, string path, string method)
     {
         var weatherUseCase = _serviceProvider.GetRequiredService<IWeatherUseCase>();
 
@@ -190,41 +211,41 @@ public class Function
         {
             var city = path.Split('/').LastOrDefault();
             if (string.IsNullOrEmpty(city))
-                return (400, JsonSerializer.Serialize(new { error = "City name is required" }));
+                return (400, JsonSerializer.Serialize(new { error = "City name is required" }, _jsonOptions), "application/json");
 
             var result = await weatherUseCase.GetWeatherByCityAsync(city);
-            return result != null ? (200, JsonSerializer.Serialize(result)) : (404, JsonSerializer.Serialize(new { error = "Weather data not found" }));
+            return result != null ? (200, JsonSerializer.Serialize(result, _jsonOptions), "application/json") : (404, JsonSerializer.Serialize(new { error = "Weather data not found" }, _jsonOptions), "application/json");
         }
 
         // Protected favorite endpoints
         var userId = GetUserIdFromToken(request);
         if (userId == null)
-            return (401, JsonSerializer.Serialize(new { error = "Unauthorized" }));
+            return (401, JsonSerializer.Serialize(new { error = "Unauthorized" }, _jsonOptions), "application/json");
 
         if (path == "/api/weather/favorites" && method == "GET")
         {
             var favorites = await weatherUseCase.GetFavoritesAsync(userId.Value);
-            return (200, JsonSerializer.Serialize(favorites));
+            return (200, JsonSerializer.Serialize(favorites, _jsonOptions), "application/json");
         }
 
         if (path == "/api/weather/favorites" && method == "POST")
         {
-            var favoriteRequest = JsonSerializer.Deserialize<WeatherFavoriteRequestDto>(request.Body);
+            var favoriteRequest = JsonSerializer.Deserialize<WeatherFavoriteRequestDto>(request.Body, _jsonOptions);
             var result = await weatherUseCase.AddFavoriteAsync(userId.Value, favoriteRequest!);
-            return result != null ? (201, JsonSerializer.Serialize(result)) : (400, JsonSerializer.Serialize(new { error = "Failed to add favorite" }));
+            return result != null ? (201, JsonSerializer.Serialize(result, _jsonOptions), "application/json") : (400, JsonSerializer.Serialize(new { error = "Failed to add favorite" }, _jsonOptions), "application/json");
         }
 
         if (path.StartsWith("/api/weather/favorites/") && method == "DELETE")
         {
             var favoriteId = Guid.Parse(path.Split('/').LastOrDefault() ?? "");
             var success = await weatherUseCase.RemoveFavoriteAsync(favoriteId, userId.Value);
-            return success ? (204, "") : (404, JsonSerializer.Serialize(new { error = "Favorite not found" }));
+            return success ? (204, "", "application/json") : (404, JsonSerializer.Serialize(new { error = "Favorite not found" }, _jsonOptions), "application/json");
         }
 
-        return (404, JsonSerializer.Serialize(new { error = "Weather endpoint not found" }));
+        return (404, JsonSerializer.Serialize(new { error = "Weather endpoint not found" }, _jsonOptions), "application/json");
     }
 
-    private async Task<(int StatusCode, string Body)> HandleCountryEndpoints(APIGatewayProxyRequest request, string path, string method)
+    private async Task<(int StatusCode, string Body, string ContentType)> HandleCountryEndpoints(APIGatewayProxyRequest request, string path, string method)
     {
         var countryUseCase = _serviceProvider.GetRequiredService<ICountryUseCase>();
 
@@ -233,38 +254,38 @@ public class Function
         {
             var countryName = path.Split('/').LastOrDefault();
             if (string.IsNullOrEmpty(countryName))
-                return (400, JsonSerializer.Serialize(new { error = "Country name is required" }));
+                return (400, JsonSerializer.Serialize(new { error = "Country name is required" }, _jsonOptions), "application/json");
 
             var result = await countryUseCase.GetCountryByNameAsync(countryName);
-            return result != null ? (200, JsonSerializer.Serialize(result)) : (404, JsonSerializer.Serialize(new { error = "Country not found" }));
+            return result != null ? (200, JsonSerializer.Serialize(result, _jsonOptions), "application/json") : (404, JsonSerializer.Serialize(new { error = "Country not found" }, _jsonOptions), "application/json");
         }
 
         // Protected favorite endpoints
         var userId = GetUserIdFromToken(request);
         if (userId == null)
-            return (401, JsonSerializer.Serialize(new { error = "Unauthorized" }));
+            return (401, JsonSerializer.Serialize(new { error = "Unauthorized" }, _jsonOptions), "application/json");
 
         if (path == "/api/countries/favorites" && method == "GET")
         {
             var favorites = await countryUseCase.GetFavoritesAsync(userId.Value);
-            return (200, JsonSerializer.Serialize(favorites));
+            return (200, JsonSerializer.Serialize(favorites, _jsonOptions), "application/json");
         }
 
         if (path == "/api/countries/favorites" && method == "POST")
         {
-            var favoriteRequest = JsonSerializer.Deserialize<CountryFavoriteRequestDto>(request.Body);
+            var favoriteRequest = JsonSerializer.Deserialize<CountryFavoriteRequestDto>(request.Body, _jsonOptions);
             var result = await countryUseCase.AddFavoriteAsync(userId.Value, favoriteRequest!);
-            return result != null ? (201, JsonSerializer.Serialize(result)) : (400, JsonSerializer.Serialize(new { error = "Failed to add favorite" }));
+            return result != null ? (201, JsonSerializer.Serialize(result, _jsonOptions), "application/json") : (400, JsonSerializer.Serialize(new { error = "Failed to add favorite" }, _jsonOptions), "application/json");
         }
 
         if (path.StartsWith("/api/countries/favorites/") && method == "DELETE")
         {
             var favoriteId = Guid.Parse(path.Split('/').LastOrDefault() ?? "");
             var success = await countryUseCase.RemoveFavoriteAsync(favoriteId, userId.Value);
-            return success ? (204, "") : (404, JsonSerializer.Serialize(new { error = "Favorite not found" }));
+            return success ? (204, "", "application/json") : (404, JsonSerializer.Serialize(new { error = "Favorite not found" }, _jsonOptions), "application/json");
         }
 
-        return (404, JsonSerializer.Serialize(new { error = "Country endpoint not found" }));
+        return (404, JsonSerializer.Serialize(new { error = "Country endpoint not found" }, _jsonOptions), "application/json");
     }
 
     private Guid? GetUserIdFromToken(APIGatewayProxyRequest request)
@@ -278,97 +299,363 @@ public class Function
         try
         {
             var token = authHeader.Substring(7);
+            var authService = _serviceProvider.GetRequiredService<IAuthService>();
+            
+            _logger.LogInformation($"Validating token: {token.Substring(0, 50)}...");
+            
+            // Validate token using AuthService
+            if (!authService.ValidateToken(token))
+            {
+                _logger.LogWarning("Token validation failed");
+                return null;
+            }
+                
             var handler = new JwtSecurityTokenHandler();
             var jsonToken = handler.ReadJwtToken(token);
-            var userIdClaim = jsonToken.Claims.FirstOrDefault(x => x.Type == "sub")?.Value;
+            
+            // Look for "nameid" claim (JWT short form of NameIdentifier)
+            var userIdClaim = jsonToken.Claims.FirstOrDefault(x => x.Type == "nameid")?.Value;
+            _logger.LogInformation($"Found user ID claim: {userIdClaim}");
+            
             return Guid.TryParse(userIdClaim, out var userId) ? userId : null;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Error validating token");
             return null;
         }
     }
 
     private string GetSwaggerJson()
     {
-        var swagger = new
+        var apiUrl = Environment.GetEnvironmentVariable("API_URL") ?? "https://3ei1klgibg.execute-api.us-east-1.amazonaws.com/prod";
+        
+        var swagger = new Dictionary<string, object>
         {
-            openapi = "3.0.1",
-            info = new
+            ["openapi"] = "3.0.1",
+            ["info"] = new Dictionary<string, object>
             {
-                title = "GloboClima API - AUVO Technical Test",
-                version = "1.0.0",
-                description = "REST API for weather and country information with favorites management"
+                ["title"] = "GloboClima API - AUVO Technical Test",
+                ["version"] = "1.0.0",
+                ["description"] = "REST API for weather and country information with favorites management"
             },
-            servers = new[] { new { url = "https://api.gateway.url/prod", description = "Production" } },
-            paths = new
+            ["servers"] = new[]
             {
-                // Auth endpoints
-                _api_auth_register = new
+                new Dictionary<string, object>
                 {
-                    post = new
+                    ["url"] = apiUrl,
+                    ["description"] = "Production"
+                }
+            },
+            ["paths"] = new Dictionary<string, object>
+            {
+                ["/api/auth/register"] = new Dictionary<string, object>
+                {
+                    ["post"] = new Dictionary<string, object>
                     {
-                        tags = new[] { "Authentication" },
-                        summary = "Register new user",
-                        requestBody = new
+                        ["tags"] = new[] { "Authentication" },
+                        ["summary"] = "Register new user",
+                        ["requestBody"] = new Dictionary<string, object>
                         {
-                            content = new
+                            ["required"] = true,
+                            ["content"] = new Dictionary<string, object>
                             {
-                                _application_json = new
+                                ["application/json"] = new Dictionary<string, object>
                                 {
-                                    schema = new
+                                    ["schema"] = new Dictionary<string, object>
                                     {
-                                        type = "object",
-                                        properties = new
+                                        ["type"] = "object",
+                                        ["required"] = new[] { "email", "password", "confirmPassword", "firstName", "lastName" },
+                                        ["properties"] = new Dictionary<string, object>
                                         {
-                                            email = new { type = "string", format = "email" },
-                                            password = new { type = "string", minLength = 6 }
+                                            ["email"] = new Dictionary<string, object> { ["type"] = "string", ["format"] = "email" },
+                                            ["password"] = new Dictionary<string, object> { ["type"] = "string", ["minLength"] = 6 },
+                                            ["confirmPassword"] = new Dictionary<string, object> { ["type"] = "string", ["minLength"] = 6 },
+                                            ["firstName"] = new Dictionary<string, object> { ["type"] = "string" },
+                                            ["lastName"] = new Dictionary<string, object> { ["type"] = "string" }
                                         }
                                     }
                                 }
                             }
                         },
-                        responses = new
+                        ["responses"] = new Dictionary<string, object>
                         {
-                            _201 = new { description = "User registered successfully" },
-                            _400 = new { description = "Invalid input" }
+                            ["201"] = new Dictionary<string, object> { ["description"] = "User registered successfully" },
+                            ["400"] = new Dictionary<string, object> { ["description"] = "Invalid input" }
                         }
                     }
                 },
-                _api_auth_login = new
+                ["/api/auth/login"] = new Dictionary<string, object>
                 {
-                    post = new
+                    ["post"] = new Dictionary<string, object>
                     {
-                        tags = new[] { "Authentication" },
-                        summary = "Login user",
-                        requestBody = new
+                        ["tags"] = new[] { "Authentication" },
+                        ["summary"] = "Login user",
+                        ["requestBody"] = new Dictionary<string, object>
                         {
-                            content = new
+                            ["required"] = true,
+                            ["content"] = new Dictionary<string, object>
                             {
-                                _application_json = new
+                                ["application/json"] = new Dictionary<string, object>
                                 {
-                                    schema = new
+                                    ["schema"] = new Dictionary<string, object>
                                     {
-                                        type = "object",
-                                        properties = new
+                                        ["type"] = "object",
+                                        ["required"] = new[] { "email", "password" },
+                                        ["properties"] = new Dictionary<string, object>
                                         {
-                                            email = new { type = "string", format = "email" },
-                                            password = new { type = "string" }
+                                            ["email"] = new Dictionary<string, object> { ["type"] = "string", ["format"] = "email" },
+                                            ["password"] = new Dictionary<string, object> { ["type"] = "string" }
                                         }
                                     }
                                 }
                             }
                         },
-                        responses = new
+                        ["responses"] = new Dictionary<string, object>
                         {
-                            _200 = new { description = "Login successful" },
-                            _401 = new { description = "Invalid credentials" }
+                            ["200"] = new Dictionary<string, object> { ["description"] = "Login successful" },
+                            ["401"] = new Dictionary<string, object> { ["description"] = "Invalid credentials" }
                         }
+                    }
+                },
+                ["/api/weather/city/{city}"] = new Dictionary<string, object>
+                {
+                    ["get"] = new Dictionary<string, object>
+                    {
+                        ["tags"] = new[] { "Weather" },
+                        ["summary"] = "Get weather by city",
+                        ["parameters"] = new[]
+                        {
+                            new Dictionary<string, object>
+                            {
+                                ["name"] = "city",
+                                ["in"] = "path",
+                                ["required"] = true,
+                                ["schema"] = new Dictionary<string, object> { ["type"] = "string" }
+                            }
+                        },
+                        ["responses"] = new Dictionary<string, object>
+                        {
+                            ["200"] = new Dictionary<string, object> { ["description"] = "Weather data retrieved" },
+                            ["404"] = new Dictionary<string, object> { ["description"] = "City not found" }
+                        }
+                    }
+                },
+                ["/api/weather/favorites"] = new Dictionary<string, object>
+                {
+                    ["get"] = new Dictionary<string, object>
+                    {
+                        ["tags"] = new[] { "Weather" },
+                        ["summary"] = "Get favorite cities",
+                        ["security"] = new[] { new Dictionary<string, object[]> { ["Bearer"] = new object[0] } },
+                        ["responses"] = new Dictionary<string, object>
+                        {
+                            ["200"] = new Dictionary<string, object> { ["description"] = "List of favorite cities" },
+                            ["401"] = new Dictionary<string, object> { ["description"] = "Unauthorized" }
+                        }
+                    },
+                    ["post"] = new Dictionary<string, object>
+                    {
+                        ["tags"] = new[] { "Weather" },
+                        ["summary"] = "Add favorite city",
+                        ["security"] = new[] { new Dictionary<string, object[]> { ["Bearer"] = new object[0] } },
+                        ["requestBody"] = new Dictionary<string, object>
+                        {
+                            ["required"] = true,
+                            ["content"] = new Dictionary<string, object>
+                            {
+                                ["application/json"] = new Dictionary<string, object>
+                                {
+                                    ["schema"] = new Dictionary<string, object>
+                                    {
+                                        ["type"] = "object",
+                                        ["properties"] = new Dictionary<string, object>
+                                        {
+                                            ["cityName"] = new Dictionary<string, object> { ["type"] = "string" }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        ["responses"] = new Dictionary<string, object>
+                        {
+                            ["201"] = new Dictionary<string, object> { ["description"] = "Favorite added" },
+                            ["401"] = new Dictionary<string, object> { ["description"] = "Unauthorized" }
+                        }
+                    }
+                },
+                ["/api/weather/favorites/{id}"] = new Dictionary<string, object>
+                {
+                    ["delete"] = new Dictionary<string, object>
+                    {
+                        ["tags"] = new[] { "Weather" },
+                        ["summary"] = "Remove favorite city",
+                        ["security"] = new[] { new Dictionary<string, object[]> { ["Bearer"] = new object[0] } },
+                        ["parameters"] = new[]
+                        {
+                            new Dictionary<string, object>
+                            {
+                                ["name"] = "id",
+                                ["in"] = "path",
+                                ["required"] = true,
+                                ["schema"] = new Dictionary<string, object> { ["type"] = "string", ["format"] = "uuid" }
+                            }
+                        },
+                        ["responses"] = new Dictionary<string, object>
+                        {
+                            ["204"] = new Dictionary<string, object> { ["description"] = "Favorite removed" },
+                            ["404"] = new Dictionary<string, object> { ["description"] = "Favorite not found" },
+                            ["401"] = new Dictionary<string, object> { ["description"] = "Unauthorized" }
+                        }
+                    }
+                },
+                ["/api/countries/{name}"] = new Dictionary<string, object>
+                {
+                    ["get"] = new Dictionary<string, object>
+                    {
+                        ["tags"] = new[] { "Countries" },
+                        ["summary"] = "Get country by name",
+                        ["parameters"] = new[]
+                        {
+                            new Dictionary<string, object>
+                            {
+                                ["name"] = "name",
+                                ["in"] = "path",
+                                ["required"] = true,
+                                ["schema"] = new Dictionary<string, object> { ["type"] = "string" }
+                            }
+                        },
+                        ["responses"] = new Dictionary<string, object>
+                        {
+                            ["200"] = new Dictionary<string, object> { ["description"] = "Country data retrieved" },
+                            ["404"] = new Dictionary<string, object> { ["description"] = "Country not found" }
+                        }
+                    }
+                },
+                ["/api/countries/favorites"] = new Dictionary<string, object>
+                {
+                    ["get"] = new Dictionary<string, object>
+                    {
+                        ["tags"] = new[] { "Countries" },
+                        ["summary"] = "Get favorite countries",
+                        ["security"] = new[] { new Dictionary<string, object[]> { ["Bearer"] = new object[0] } },
+                        ["responses"] = new Dictionary<string, object>
+                        {
+                            ["200"] = new Dictionary<string, object> { ["description"] = "List of favorite countries" },
+                            ["401"] = new Dictionary<string, object> { ["description"] = "Unauthorized" }
+                        }
+                    },
+                    ["post"] = new Dictionary<string, object>
+                    {
+                        ["tags"] = new[] { "Countries" },
+                        ["summary"] = "Add favorite country",
+                        ["security"] = new[] { new Dictionary<string, object[]> { ["Bearer"] = new object[0] } },
+                        ["requestBody"] = new Dictionary<string, object>
+                        {
+                            ["required"] = true,
+                            ["content"] = new Dictionary<string, object>
+                            {
+                                ["application/json"] = new Dictionary<string, object>
+                                {
+                                    ["schema"] = new Dictionary<string, object>
+                                    {
+                                        ["type"] = "object",
+                                        ["properties"] = new Dictionary<string, object>
+                                        {
+                                            ["countryName"] = new Dictionary<string, object> { ["type"] = "string" }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        ["responses"] = new Dictionary<string, object>
+                        {
+                            ["201"] = new Dictionary<string, object> { ["description"] = "Favorite added" },
+                            ["401"] = new Dictionary<string, object> { ["description"] = "Unauthorized" }
+                        }
+                    }
+                },
+                ["/api/countries/favorites/{id}"] = new Dictionary<string, object>
+                {
+                    ["delete"] = new Dictionary<string, object>
+                    {
+                        ["tags"] = new[] { "Countries" },
+                        ["summary"] = "Remove favorite country",
+                        ["security"] = new[] { new Dictionary<string, object[]> { ["Bearer"] = new object[0] } },
+                        ["parameters"] = new[]
+                        {
+                            new Dictionary<string, object>
+                            {
+                                ["name"] = "id",
+                                ["in"] = "path",
+                                ["required"] = true,
+                                ["schema"] = new Dictionary<string, object> { ["type"] = "string", ["format"] = "uuid" }
+                            }
+                        },
+                        ["responses"] = new Dictionary<string, object>
+                        {
+                            ["204"] = new Dictionary<string, object> { ["description"] = "Favorite removed" },
+                            ["404"] = new Dictionary<string, object> { ["description"] = "Favorite not found" },
+                            ["401"] = new Dictionary<string, object> { ["description"] = "Unauthorized" }
+                        }
+                    }
+                }
+            },
+            ["components"] = new Dictionary<string, object>
+            {
+                ["securitySchemes"] = new Dictionary<string, object>
+                {
+                    ["Bearer"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "http",
+                        ["scheme"] = "bearer",
+                        ["bearerFormat"] = "JWT"
                     }
                 }
             }
         };
 
-        return JsonSerializer.Serialize(swagger, new JsonSerializerOptions { WriteIndented = true });
+        return JsonSerializer.Serialize(swagger, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+    }
+    
+    private string GetSwaggerHtml()
+    {
+        var apiUrl = Environment.GetEnvironmentVariable("API_URL") ?? "https://3ei1klgibg.execute-api.us-east-1.amazonaws.com/prod";
+        
+        return @"<!DOCTYPE html>
+<html lang=""en"">
+<head>
+    <meta charset=""UTF-8"">
+    <title>GloboClima API - Swagger UI</title>
+    <link rel=""stylesheet"" href=""https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css"">
+    <style>
+        html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
+        *, *:before, *:after { box-sizing: inherit; }
+        body { margin:0; background: #fafafa; }
+    </style>
+</head>
+<body>
+    <div id=""swagger-ui""></div>
+    <script src=""https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js""></script>
+    <script src=""https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-standalone-preset.js""></script>
+    <script>
+        window.onload = function() {
+            window.ui = SwaggerUIBundle({
+                url: """ + apiUrl + @"/swagger"",
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: ""StandaloneLayout""
+            });
+        };
+    </script>
+</body>
+</html>";
     }
 }
