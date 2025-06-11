@@ -29,14 +29,15 @@ public class WeatherServiceTests
 
         var inMemorySettings = new Dictionary<string, string>
         {
-            {"OpenWeatherMap:ApiKey", "test-api-key"}
+            {"WeatherAPI:ApiKey", "test-api-key"},
+            {"WeatherApi:BaseUrl", "http://api.weatherapi.com/v1"}
         };
 
         _configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(inMemorySettings!)
             .Build();
 
-        _weatherService = new WeatherService(_httpClientFactoryMock.Object, _configuration);
+        _weatherService = new WeatherService(httpClient, _configuration);
     }
 
     [Fact]
@@ -89,13 +90,14 @@ public class WeatherServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        result.CityName.Should().Be("London");
-        result.Country.Should().Be("United Kingdom");
-        result.Temperature.Should().Be(15.0);
-        result.Description.Should().Be("Partly cloudy");
-        result.Humidity.Should().Be(72);
-        result.Pressure.Should().Be(1019.0);
-        result.WindSpeed.Should().Be(13.0);
+        result.Name.Should().Be("London");
+        result.Sys.Country.Should().Be("GB");
+        result.Main.Temp.Should().Be(15.0);
+        result.Weather.Should().NotBeEmpty();
+        result.Weather.First().Description.Should().Be("Partly cloudy");
+        result.Main.Humidity.Should().Be(72);
+        result.Main.Pressure.Should().Be(1019);
+        result.Wind.Speed.Should().Be(13.0);
     }
 
     [Fact]

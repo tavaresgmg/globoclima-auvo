@@ -50,7 +50,7 @@ public class AuthService
                 return true;
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Login error - handled by return false
         }
@@ -84,7 +84,7 @@ public class AuthService
                 return true;
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Register error - handled by return false
         }

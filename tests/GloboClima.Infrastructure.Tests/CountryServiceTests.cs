@@ -25,7 +25,7 @@ public class CountryServiceTests
         _httpClientFactoryMock = new Mock<IHttpClientFactory>();
         _httpClientFactoryMock.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(httpClient);
 
-        _countryService = new CountryService(_httpClientFactoryMock.Object);
+        _countryService = new CountryService(httpClient);
     }
 
     [Fact]

@@ -352,7 +352,7 @@
                 await CheckIfFavorite();
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             errorMessage = "Erro ao buscar dados do clima. Tente novamente mais tarde.";
             // Error already displayed to user
@@ -378,7 +378,7 @@
             var result = await ApiService.GetAsync<List<WeatherFavoriteResponseDto>>("api/weather/favorites");
             favorites = result ?? new List<WeatherFavoriteResponseDto>();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Error loading favorites - handled silently
         }
@@ -442,7 +442,7 @@
                 await JS.InvokeVoidAsync("alert", "Esta cidade já está nos seus favoritos!");
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             errorMessage = "Erro ao adicionar aos favoritos.";
             // Add favorite error - error message already displayed
@@ -481,7 +481,7 @@
                 await JS.InvokeVoidAsync("alert", "Cidade removida dos favoritos!");
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             errorMessage = "Erro ao remover dos favoritos.";
             // Delete favorite error - error message already displayed

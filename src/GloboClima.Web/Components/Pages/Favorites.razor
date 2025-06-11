@@ -156,7 +156,7 @@
             var result = await ApiService.GetAsync<List<WeatherFavoriteResponseDto>>("api/weather/favorites");
             weatherFavorites = result ?? new List<WeatherFavoriteResponseDto>();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Error loading weather favorites - handled silently
         }
@@ -173,7 +173,7 @@
             var result = await ApiService.GetAsync<List<CountryFavoriteResponseDto>>("api/countries/favorites");
             countryFavorites = result ?? new List<CountryFavoriteResponseDto>();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Error loading country favorites - handled silently
         }

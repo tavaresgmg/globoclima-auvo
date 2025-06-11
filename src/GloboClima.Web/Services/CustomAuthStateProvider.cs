@@ -75,7 +75,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
             var jsonToken = handler.ReadJwtToken(jwt);
             claims.AddRange(jsonToken.Claims);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // JWT parsing error - handled silently
         }

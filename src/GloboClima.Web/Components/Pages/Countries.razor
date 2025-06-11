@@ -290,7 +290,7 @@
             filteredCountries = allCountries;
             UpdateDisplayedCountries();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             errorMessage = "Erro ao carregar países. Tente novamente mais tarde.";
             // Load countries error - error message already displayed
@@ -366,7 +366,7 @@
                 filteredCountries = result ?? new List<CountryResponse>();
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             errorMessage = "Erro ao buscar países.";
             filteredCountries = new List<CountryResponse>();
@@ -423,7 +423,7 @@
             var result = await ApiService.GetAsync<List<CountryFavoriteResponseDto>>("api/countries/favorites");
             favorites = result ?? new List<CountryFavoriteResponseDto>();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Error loading favorites - handled silently
         }
@@ -461,7 +461,7 @@
                 StateHasChanged();
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             errorMessage = "Erro ao adicionar aos favoritos.";
             // Add favorite error - error message already displayed
@@ -498,7 +498,7 @@
                 StateHasChanged();
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             errorMessage = "Erro ao remover dos favoritos.";
             // Delete favorite error - error message already displayed

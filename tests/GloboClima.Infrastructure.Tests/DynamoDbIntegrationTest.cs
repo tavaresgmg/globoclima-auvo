@@ -60,7 +60,7 @@ public class DynamoDbIntegrationTest
             // Cleanup
             await _context.DeleteAsync<DynamoUser>(testUser.Id);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             throw new Exception($"DynamoDB operation failed: {ex.Message}", ex);
         }
@@ -114,7 +114,7 @@ public class DynamoDbIntegrationTest
             // Cleanup
             await _context.DeleteAsync<DynamoUser>(testUser.Id);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             throw new Exception($"GSI Query failed: {ex.Message}", ex);
         }

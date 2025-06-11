@@ -102,24 +102,13 @@ builder.Services.AddSwaggerGen(c =>
     c.UseInlineDefinitionsForEnums();
 });
 
-// Configure repositories based on environment
-if (builder.Environment.IsDevelopment())
-{
-    // Use in-memory repositories for development
-    builder.Services.AddSingleton<IUserRepository, InMemoryUserRepository>();
-    builder.Services.AddSingleton<IWeatherFavoriteRepository, InMemoryWeatherFavoriteRepository>();
-    builder.Services.AddSingleton<ICountryFavoriteRepository, InMemoryCountryFavoriteRepository>();
-}
-else
-{
-    // Configure DynamoDB for production
-    builder.Services.AddSingleton<DynamoDbContext>();
-    
-    // Repositories
-    builder.Services.AddScoped<IUserRepository, UserRepository>();
-    builder.Services.AddScoped<IWeatherFavoriteRepository, WeatherFavoriteRepository>();
-    builder.Services.AddScoped<ICountryFavoriteRepository, CountryFavoriteRepository>();
-}
+// Configure DynamoDB
+builder.Services.AddSingleton<DynamoDbContext>();
+
+// Repositories
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IWeatherFavoriteRepository, WeatherFavoriteRepository>();
+builder.Services.AddScoped<ICountryFavoriteRepository, CountryFavoriteRepository>();
 
 // Services
 builder.Services.AddScoped<IAuthService, AuthService>();
