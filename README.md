@@ -37,8 +37,9 @@ Sistema completo de consulta de clima e países com gerenciamento de favoritos, 
 ## 🚀 Demonstração Online
 
 - **API REST**: https://3ei1klgibg.execute-api.us-east-1.amazonaws.com/prod
-- **Documentação Swagger**: https://3ei1klgibg.execute-api.us-east-1.amazonaws.com/prod/swagger
-- **Swagger UI Interativo**: https://3ei1klgibg.execute-api.us-east-1.amazonaws.com/prod/swagger/index.html
+- **Lambda Function URL**: https://6wlvpqipuzyxpxyyj5npoetlvi0nwcmj.lambda-url.us-east-1.on.aws/
+- **Documentação Swagger**: Em manutenção
+- **Swagger JSON**: Disponível localmente executando a API
 
 ## ✅ Checklist Completo dos Requisitos
 
@@ -175,12 +176,3 @@ O deploy é feito automaticamente via GitHub Actions ao fazer push para main.
    - Terraform para IaC
    - Deploy automatizado no push para main
 
-## 🤝 Contributing
-
-Interested in contributing to GloboClima? Please read our [Contributing Guidelines](docs/CONTRIBUTING.md) for details on our code of conduct, development process, and how to submit pull requests.
-
-## 📝 Observações Finais
-
-- **Frontend**: Blazor Server requer hospedagem .NET (aguardando resposta sobre requisito de hospedagem)
-- **Monitoramento**: CloudWatch Logs configurado para todas as funções Lambda
-- **Cobertura**: Todos os requisitos do teste técnico foram implementados e estão funcionais

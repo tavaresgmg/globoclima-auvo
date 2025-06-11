@@ -93,6 +93,12 @@ public class Function
     public async Task<APIGatewayProxyResponse> FunctionHandler(APIGatewayProxyRequest request, ILambdaContext context)
     {
         _logger.LogInformation($"Processing request: {request.HttpMethod} {request.Path}");
+        
+        // Debug: log all request properties
+        _logger.LogInformation($"Resource: {request.Resource}");
+        _logger.LogInformation($"PathParameters: {JsonSerializer.Serialize(request.PathParameters, _jsonOptions)}");
+        _logger.LogInformation($"RequestContext.Path: {request.RequestContext?.Path}");
+        _logger.LogInformation($"RequestContext.ResourcePath: {request.RequestContext?.ResourcePath}");
 
         try
         {
@@ -142,8 +148,25 @@ public class Function
 
     private async Task<(int StatusCode, string Body, string ContentType)> RouteRequest(APIGatewayProxyRequest request)
     {
+        // Try different path sources for Lambda Function URL compatibility
         var path = request.Path?.ToLower() ?? "";
+        if (string.IsNullOrEmpty(path))
+        {
+            path = request.Resource?.ToLower() ?? "";
+        }
+        if (string.IsNullOrEmpty(path))
+        {
+            path = request.RequestContext?.Path?.ToLower() ?? "";
+        }
+        if (string.IsNullOrEmpty(path))
+        {
+            path = request.RequestContext?.ResourcePath?.ToLower() ?? "";
+        }
+        
         var method = request.HttpMethod?.ToUpper() ?? "";
+        
+        // Log for debugging
+        _logger.LogInformation($"RouteRequest: path={path}, method={method}");
 
         // Health check
         if (path == "/health")
