@@ -41,6 +41,14 @@ Sistema completo de consulta de clima e países com gerenciamento de favoritos, 
 - **Documentação Swagger**: Em manutenção
 - **Swagger JSON**: Disponível localmente executando a API
 
+## 📚 Documentação da API
+
+<p align="center">
+  <img src="docs/images/swagger.png" alt="Swagger Documentation" width="800"/>
+  <br/>
+  <em>Documentação interativa da API com Swagger</em>
+</p>
+
 ## ✅ Checklist Completo dos Requisitos
 
 ### Backend - API REST ✓
