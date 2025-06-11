@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Amazon;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DataModel;
+using Amazon.DynamoDBv2.DocumentModel;
 using GloboClima.Infrastructure.Models;
 using GloboClima.Infrastructure.Repositories;
 using Microsoft.Extensions.Configuration;
@@ -60,7 +62,7 @@ public class DynamoDbIntegrationTest
             // Cleanup
             await _context.DeleteAsync<DynamoUser>(testUser.Id);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             throw new Exception($"DynamoDB operation failed: {ex.Message}", ex);
         }
@@ -114,7 +116,7 @@ public class DynamoDbIntegrationTest
             // Cleanup
             await _context.DeleteAsync<DynamoUser>(testUser.Id);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             throw new Exception($"GSI Query failed: {ex.Message}", ex);
         }

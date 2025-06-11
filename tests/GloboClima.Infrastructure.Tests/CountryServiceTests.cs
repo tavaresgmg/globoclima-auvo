@@ -72,14 +72,15 @@ public class CountryServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Name.Should().Be("Brazil");
-        result.Code.Should().Be("BR");
-        result.Capital.Should().Be("Brasília");
+        result.Name.Common.Should().Be("Brazil");
+        result.Cca2.Should().Be("BR");
+        result.Capital.Should().Contain("Brasília");
         result.Region.Should().Be("Americas");
         result.Population.Should().Be(214326223);
-        result.Languages.Should().Contain("Portuguese");
-        result.Currencies.Should().Contain("Brazilian real (R$)");
-        result.FlagUrl.Should().Be("https://flagcdn.com/w320/br.png");
+        result.Languages.Should().ContainValue("Portuguese");
+        result.Currencies.Should().ContainKey("BRL");
+        result.Currencies["BRL"].Name.Should().Be("Brazilian real");
+        result.Flags.Png.Should().Be("https://flagcdn.com/w320/br.png");
     }
 
     [Fact]
@@ -165,8 +166,8 @@ public class CountryServiceTests
         // Assert
         result.Should().NotBeNull();
         result.Should().HaveCount(2);
-        result.Should().Contain(c => c.Name == "United States");
-        result.Should().Contain(c => c.Name == "United Kingdom");
+        result.Should().Contain(c => c.Name.Common == "United States");
+        result.Should().Contain(c => c.Name.Common == "United Kingdom");
     }
 
     [Fact]
@@ -226,8 +227,8 @@ public class CountryServiceTests
         // Assert
         result.Should().NotBeNull();
         result.Should().HaveCount(2);
-        result.Should().Contain(c => c.Name == "Brazil" && c.Code == "BR");
-        result.Should().Contain(c => c.Name == "Argentina" && c.Code == "AR");
+        result.Should().Contain(c => c.Name.Common == "Brazil" && c.Cca2 == "BR");
+        result.Should().Contain(c => c.Name.Common == "Argentina" && c.Cca2 == "AR");
     }
 
     [Fact]

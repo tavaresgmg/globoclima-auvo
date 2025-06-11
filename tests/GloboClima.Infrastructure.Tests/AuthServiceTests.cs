@@ -74,18 +74,19 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public void GenerateJwtToken_Should_Return_Valid_Token()
+    public async Task GenerateJwtToken_Should_Return_Valid_Token()
     {
         // Arrange
         var user = new User
         {
             Id = Guid.NewGuid(),
             Email = "test@example.com",
-            Name = "Test User"
+            FirstName = "Test",
+            LastName = "User"
         };
 
         // Act
-        var token = _authService.GenerateJwtToken(user);
+        var token = await _authService.GenerateJwtTokenAsync(user.Id, user.Email, user.FirstName, user.LastName);
 
         // Assert
         token.Should().NotBeNullOrEmpty();
@@ -95,18 +96,19 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public void GenerateJwtToken_Should_Include_User_Claims()
+    public async Task GenerateJwtToken_Should_Include_User_Claims()
     {
         // Arrange
         var user = new User
         {
             Id = Guid.NewGuid(),
             Email = "test@example.com",
-            Name = "Test User"
+            FirstName = "Test",
+            LastName = "User"
         };
 
         // Act
-        var token = _authService.GenerateJwtToken(user);
+        var token = await _authService.GenerateJwtTokenAsync(user.Id, user.Email, user.FirstName, user.LastName);
 
         // Assert
         // Decode token to verify claims
@@ -115,24 +117,25 @@ public class AuthServiceTests
         
         jsonToken.Claims.Should().Contain(c => c.Type == "nameid" && c.Value == user.Id.ToString());
         jsonToken.Claims.Should().Contain(c => c.Type == "email" && c.Value == user.Email);
-        jsonToken.Claims.Should().Contain(c => c.Type == "unique_name" && c.Value == user.Name);
+        jsonToken.Claims.Should().Contain(c => c.Type == "name" && c.Value == $"{user.FirstName} {user.LastName}");
         jsonToken.Claims.Should().Contain(c => c.Type == "jti"); // JWT ID
         jsonToken.Claims.Should().Contain(c => c.Type == "iat"); // Issued At
     }
 
     [Fact]
-    public void GenerateJwtToken_Should_Set_Correct_Expiration()
+    public async Task GenerateJwtToken_Should_Set_Correct_Expiration()
     {
         // Arrange
         var user = new User
         {
             Id = Guid.NewGuid(),
             Email = "test@example.com",
-            Name = "Test User"
+            FirstName = "Test",
+            LastName = "User"
         };
 
         // Act
-        var token = _authService.GenerateJwtToken(user);
+        var token = await _authService.GenerateJwtTokenAsync(user.Id, user.Email, user.FirstName, user.LastName);
 
         // Assert
         var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
@@ -143,18 +146,19 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public void GenerateJwtToken_Should_Set_Correct_Issuer_And_Audience()
+    public async Task GenerateJwtToken_Should_Set_Correct_Issuer_And_Audience()
     {
         // Arrange
         var user = new User
         {
             Id = Guid.NewGuid(),
             Email = "test@example.com",
-            Name = "Test User"
+            FirstName = "Test",
+            LastName = "User"
         };
 
         // Act
-        var token = _authService.GenerateJwtToken(user);
+        var token = await _authService.GenerateJwtTokenAsync(user.Id, user.Email, user.FirstName, user.LastName);
 
         // Assert
         var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();

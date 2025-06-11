@@ -91,7 +91,7 @@ public class WeatherServiceTests
         // Assert
         result.Should().NotBeNull();
         result.Name.Should().Be("London");
-        result.Sys.Country.Should().Be("GB");
+        result.Sys.Country.Should().Be("United Kingdom");
         result.Main.Temp.Should().Be(15.0);
         result.Weather.Should().NotBeEmpty();
         result.Weather.First().Description.Should().Be("Partly cloudy");
@@ -177,10 +177,10 @@ public class WeatherServiceTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Latitude.Should().Be(latitude);
-        result.Longitude.Should().Be(longitude);
-        result.CityName.Should().Be("London");
-        result.Country.Should().Be("United Kingdom");
+        result.Coord.Lat.Should().Be(latitude);
+        result.Coord.Lon.Should().Be(longitude);
+        result.Name.Should().Be("London");
+        result.Sys.Country.Should().Be("United Kingdom");
     }
 
     [Fact]
