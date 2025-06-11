@@ -40,7 +40,7 @@
                 <div class="nav-item px-3 mt-auto user-info">
                     <NavLink class="nav-link text-light" href="profile">
                         <i class="bi bi-person-circle me-2"></i>
-                        <small>Olá, @context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</small>
+                        <small>Olá, @(context.User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value ?? context.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value?.Split(' ')[0] ?? "Usuário")</small>
                     </NavLink>
                 </div>
                 

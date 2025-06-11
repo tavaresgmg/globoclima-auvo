@@ -8,6 +8,8 @@ using GloboClima.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Polly;
+using Polly.Extensions.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,7 +17,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 // Configure JWT Authentication
-var jwtSecret = builder.Configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
+var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? 
+    builder.Configuration["Jwt:Secret"] ?? 
+    throw new InvalidOperationException("JWT Secret not configured. Set JWT_SECRET environment variable.");
 var key = Encoding.ASCII.GetBytes(jwtSecret);
 
 builder.Services.AddAuthentication(x =>
@@ -25,7 +29,7 @@ builder.Services.AddAuthentication(x =>
 })
 .AddJwtBearer(x =>
 {
-    x.RequireHttpsMetadata = false;
+    x.RequireHttpsMetadata = !builder.Environment.IsDevelopment(); // Force HTTPS in production
     x.SaveToken = true;
     x.TokenValidationParameters = new TokenValidationParameters
     {
@@ -120,17 +124,53 @@ else
 // Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// Use WeatherApiService instead of WeatherService for development
-if (builder.Environment.IsDevelopment())
+// Configure HTTP retry policy
+var retryPolicy = HttpPolicyExtensions
+    .HandleTransientHttpError()
+    .OrResult(msg => !msg.IsSuccessStatusCode)
+    .WaitAndRetryAsync(
+        3,
+        retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+        onRetry: (outcome, timespan, retryCount, context) =>
+        {
+            // Retry logging handled by Polly
+        });
+
+// Configure circuit breaker policy
+var circuitBreakerPolicy = HttpPolicyExtensions
+    .HandleTransientHttpError()
+    .CircuitBreakerAsync(
+        3,
+        TimeSpan.FromSeconds(30),
+        onBreak: (result, timespan) =>
+        {
+            // Circuit breaker opened
+        },
+        onReset: () =>
+        {
+            // Circuit breaker reset
+        });
+
+// Combine policies
+var resilientPolicy = Policy.WrapAsync(retryPolicy, circuitBreakerPolicy);
+
+// Configure Weather Service based on environment variable or configuration
+var useOpenWeatherMap = Environment.GetEnvironmentVariable("USE_OPENWEATHERMAP") ?? 
+    builder.Configuration["WeatherService:UseOpenWeatherMap"];
+
+if (useOpenWeatherMap?.ToLower() == "true")
 {
-    builder.Services.AddHttpClient<IWeatherService, WeatherApiService>();
+    builder.Services.AddHttpClient<IWeatherService, OpenWeatherMapService>()
+        .AddPolicyHandler(resilientPolicy);
 }
 else
 {
-    builder.Services.AddHttpClient<IWeatherService, WeatherService>();
+    builder.Services.AddHttpClient<IWeatherService, WeatherService>()
+        .AddPolicyHandler(resilientPolicy);
 }
 
-builder.Services.AddHttpClient<ICountryService, CountryService>();
+builder.Services.AddHttpClient<ICountryService, CountryService>()
+    .AddPolicyHandler(resilientPolicy);
 
 // Use Cases
 builder.Services.AddScoped<IAuthUseCase, AuthUseCase>();

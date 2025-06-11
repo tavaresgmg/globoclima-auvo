@@ -8,6 +8,9 @@ public class CountryService : ICountryService
 {
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl = "https://restcountries.com/v3.1";
+    private static List<CountryResponse>? _cachedCountries;
+    private static DateTime _cacheExpiry = DateTime.MinValue;
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(30);
 
     public CountryService(HttpClient httpClient)
     {
@@ -16,6 +19,18 @@ public class CountryService : ICountryService
 
     public async Task<CountryResponse?> GetCountryByCodeAsync(string code)
     {
+        // Check cache first
+        if (_cachedCountries != null && DateTime.UtcNow < _cacheExpiry)
+        {
+            var cachedCountry = _cachedCountries.FirstOrDefault(c => 
+                c.Cca2?.Equals(code, StringComparison.OrdinalIgnoreCase) == true ||
+                c.Cca3?.Equals(code, StringComparison.OrdinalIgnoreCase) == true
+            );
+            
+            if (cachedCountry != null)
+                return cachedCountry;
+        }
+        
         try
         {
             var url = $"{_baseUrl}/alpha/{code}";
@@ -48,6 +63,20 @@ public class CountryService : ICountryService
 
     public async Task<List<CountryResponse>> SearchCountriesByNameAsync(string name)
     {
+        // If we have cached countries, search locally first for better performance
+        if (_cachedCountries != null && DateTime.UtcNow < _cacheExpiry)
+        {
+            var localResults = _cachedCountries.Where(c => 
+                c.Name?.Common?.Contains(name, StringComparison.OrdinalIgnoreCase) == true ||
+                c.Name?.Official?.Contains(name, StringComparison.OrdinalIgnoreCase) == true ||
+                c.Cca2?.Equals(name, StringComparison.OrdinalIgnoreCase) == true ||
+                c.Cca3?.Equals(name, StringComparison.OrdinalIgnoreCase) == true
+            ).ToList();
+            
+            if (localResults.Any())
+                return localResults;
+        }
+        
         try
         {
             var url = $"{_baseUrl}/name/{Uri.EscapeDataString(name)}";
@@ -79,6 +108,12 @@ public class CountryService : ICountryService
 
     public async Task<List<CountryResponse>> GetAllCountriesAsync()
     {
+        // Check if cache is still valid
+        if (_cachedCountries != null && DateTime.UtcNow < _cacheExpiry)
+        {
+            return _cachedCountries;
+        }
+        
         try
         {
             var url = $"{_baseUrl}/all";
@@ -100,10 +135,18 @@ public class CountryService : ICountryService
                 TranslateCountryResponse(country);
             }
             
+            // Update cache
+            _cachedCountries = countries;
+            _cacheExpiry = DateTime.UtcNow.Add(CacheDuration);
+            
             return countries;
         }
         catch
         {
+            // If there's an error but we have cached data, return it
+            if (_cachedCountries != null)
+                return _cachedCountries;
+                
             return new List<CountryResponse>();
         }
     }

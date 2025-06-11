@@ -12,21 +12,21 @@
             
             <ul class="nav nav-tabs mb-4" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="weather-tab" data-bs-toggle="tab" 
-                            data-bs-target="#weather-favorites" type="button" role="tab">
+                    <button class="nav-link @(activeTab == "weather" ? "active" : "")" 
+                            @onclick="@(() => SetActiveTab("weather"))" type="button" role="tab">
                         <i class="bi bi-cloud-sun"></i> Cidades (@weatherFavorites.Count)
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="countries-tab" data-bs-toggle="tab" 
-                            data-bs-target="#country-favorites" type="button" role="tab">
+                    <button class="nav-link @(activeTab == "countries" ? "active" : "")" 
+                            @onclick="@(() => SetActiveTab("countries"))" type="button" role="tab">
                         <i class="bi bi-globe"></i> Países (@countryFavorites.Count)
                     </button>
                 </li>
             </ul>
             
             <div class="tab-content">
-                <div class="tab-pane fade show active" id="weather-favorites" role="tabpanel">
+                <div class="tab-pane fade @(activeTab == "weather" ? "show active" : "")" id="weather-favorites" role="tabpanel">
                     @if (isLoadingWeather)
                     {
                         <div class="text-center py-5">
@@ -81,7 +81,7 @@
                     }
                 </div>
                 
-                <div class="tab-pane fade" id="country-favorites" role="tabpanel">
+                <div class="tab-pane fade @(activeTab == "countries" ? "show active" : "")" id="country-favorites" role="tabpanel">
                     @if (isLoadingCountries)
                     {
                         <div class="text-center py-5">
@@ -137,6 +137,7 @@
 </div>
 
 @code {
+    private string activeTab = "weather";
     private List<WeatherFavoriteResponseDto> weatherFavorites = new();
     private List<CountryFavoriteResponseDto> countryFavorites = new();
     private bool isLoadingWeather = true;
@@ -157,7 +158,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading weather favorites: {ex.Message}");
+            // Error loading weather favorites - handled silently
         }
         finally
         {
@@ -174,7 +175,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading country favorites: {ex.Message}");
+            // Error loading country favorites - handled silently
         }
         finally
         {
@@ -208,5 +209,10 @@
             countryFavorites.RemoveAll(f => f.Id == id);
             StateHasChanged();
         }
+    }
+    
+    private void SetActiveTab(string tab)
+    {
+        activeTab = tab;
     }
 }

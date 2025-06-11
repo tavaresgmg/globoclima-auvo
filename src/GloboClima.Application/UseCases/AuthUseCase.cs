@@ -26,7 +26,7 @@ public class AuthUseCase : IAuthUseCase
         if (!_authService.VerifyPassword(request.Password, user.PasswordHash))
             return null;
 
-        var token = await _authService.GenerateJwtTokenAsync(user.Id, user.Email);
+        var token = await _authService.GenerateJwtTokenAsync(user.Id, user.Email, user.FirstName, user.LastName);
         
         return new AuthResponseDto
         {
@@ -54,7 +54,7 @@ public class AuthUseCase : IAuthUseCase
         };
 
         var createdUser = await _userRepository.CreateAsync(user);
-        var token = await _authService.GenerateJwtTokenAsync(createdUser.Id, createdUser.Email);
+        var token = await _authService.GenerateJwtTokenAsync(createdUser.Id, createdUser.Email, createdUser.FirstName, createdUser.LastName);
         
         return new AuthResponseDto
         {

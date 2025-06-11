@@ -18,13 +18,22 @@ public class AuthService : IAuthService
     public AuthService(IConfiguration configuration)
     {
         _configuration = configuration;
-        _jwtSecret = _configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
-        _issuer = _configuration["Jwt:Issuer"] ?? "GloboClima";
-        _audience = _configuration["Jwt:Audience"] ?? "GloboClima";
-        _expirationMinutes = int.Parse(_configuration["Jwt:ExpirationMinutes"] ?? "60");
+        _jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? 
+            _configuration["Jwt:Secret"] ?? 
+            throw new InvalidOperationException("JWT Secret not configured. Set JWT_SECRET environment variable.");
+        _issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? 
+            _configuration["Jwt:Issuer"] ?? 
+            "GloboClima";
+        _audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? 
+            _configuration["Jwt:Audience"] ?? 
+            "GloboClima";
+        var expirationStr = Environment.GetEnvironmentVariable("JWT_EXPIRATION_MINUTES") ?? 
+            _configuration["Jwt:ExpirationMinutes"] ?? 
+            "60";
+        _expirationMinutes = int.Parse(expirationStr);
     }
 
-    public Task<string> GenerateJwtTokenAsync(Guid userId, string email)
+    public Task<string> GenerateJwtTokenAsync(Guid userId, string email, string firstName, string lastName)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_jwtSecret);
@@ -36,6 +45,9 @@ public class AuthService : IAuthService
             {
                 new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
                 new Claim(ClaimTypes.Email, email),
+                new Claim(ClaimTypes.GivenName, firstName),
+                new Claim(ClaimTypes.Surname, lastName),
+                new Claim(ClaimTypes.Name, $"{firstName} {lastName}"),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(JwtRegisteredClaimNames.Iat, new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
             }),

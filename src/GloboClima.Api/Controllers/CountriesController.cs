@@ -34,7 +34,17 @@ public class CountriesController : ControllerBase
     [HttpGet("search")]
     public async Task<IActionResult> SearchCountries([FromQuery] string name)
     {
+        if (string.IsNullOrWhiteSpace(name))
+            return BadRequest(new { message = "Search term is required" });
+            
         var result = await _countryService.SearchCountriesByNameAsync(name);
+        return Ok(result);
+    }
+    
+    [HttpGet("all")]
+    public async Task<IActionResult> GetAllCountries()
+    {
+        var result = await _countryService.GetAllCountriesAsync();
         return Ok(result);
     }
 

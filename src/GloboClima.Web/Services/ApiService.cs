@@ -42,7 +42,11 @@ public class ApiService
         var response = await _httpClient.PostAsync(endpoint, content);
         
         if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"API Error: {response.StatusCode} - {errorContent}");
             return default;
+        }
 
         var responseContent = await response.Content.ReadAsStringAsync();
         return JsonSerializer.Deserialize<TResponse>(responseContent, _jsonOptions);

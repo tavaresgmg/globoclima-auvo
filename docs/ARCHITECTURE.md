@@ -2,7 +2,7 @@
 
 ## 📋 Visão Geral
 
-O GloboClima foi desenvolvido seguindo os princípios da **Clean Architecture**, garantindo separação clara de responsabilidades, testabilidade e manutenibilidade.
+O GloboClima foi desenvolvido seguindo os princípios da **Clean Architecture** e **Microservices Architecture**, garantindo separação clara de responsabilidades, testabilidade, manutenibilidade e escalabilidade independente dos componentes.
 
 ## 🎯 Princípios Arquiteturais
 
@@ -155,6 +155,82 @@ public interface IUserRepository
 ### **3. Factory Pattern**
 - **Criação** de services baseada em ambiente
 - **Configuração** dinâmica de providers
+
+## 🏢 Arquitetura de Microserviços
+
+### **Visão Conceitual dos Microserviços**
+
+```mermaid
+graph TB
+    subgraph "API Gateway"
+        GW[🚪 API Gateway<br/>AWS API Gateway]
+    end
+    
+    subgraph "Microservices Layer"
+        AUTH[🔐 Auth Service<br/>Lambda/ECS]
+        WEATHER[🌤️ Weather Service<br/>Lambda/ECS]
+        COUNTRY[🌍 Country Service<br/>Lambda/ECS]
+        FAV[⭐ Favorites Service<br/>Lambda/ECS]
+    end
+    
+    subgraph "Data Layer"
+        DB1[(👤 Users DB<br/>DynamoDB)]
+        DB2[(⭐ Favorites DB<br/>DynamoDB)]
+        CACHE[(💾 Cache<br/>ElastiCache)]
+    end
+    
+    subgraph "External Services"
+        WAPI[☁️ OpenWeatherMap API]
+        CAPI[🗺️ REST Countries API]
+    end
+    
+    Client[👤 Client] --> GW
+    GW --> AUTH
+    GW --> WEATHER
+    GW --> COUNTRY
+    GW --> FAV
+    
+    AUTH --> DB1
+    FAV --> DB2
+    WEATHER --> CACHE
+    WEATHER --> WAPI
+    COUNTRY --> CACHE
+    COUNTRY --> CAPI
+```
+
+### **Características dos Microserviços**
+
+| Serviço | Responsabilidade | Tecnologia | Banco de Dados |
+|---------|------------------|------------|----------------|
+| **Auth Service** | Autenticação e autorização | Lambda/Container | DynamoDB (Users) |
+| **Weather Service** | Consulta de clima | Lambda/Container | Cache Redis |
+| **Country Service** | Dados de países | Lambda/Container | Cache Redis |
+| **Favorites Service** | Gerenciamento de favoritos | Lambda/Container | DynamoDB (Favorites) |
+
+### **Comunicação entre Serviços**
+
+1. **Síncrona**: REST APIs via HTTP/HTTPS
+2. **Assíncrona**: EventBridge para eventos de domínio
+3. **Service Mesh**: AWS App Mesh para observabilidade
+
+### **Benefícios da Arquitetura**
+
+- ✅ **Escalabilidade independente** por serviço
+- ✅ **Deploy independente** sem afetar outros serviços
+- ✅ **Tecnologia específica** por contexto
+- ✅ **Isolamento de falhas** com circuit breakers
+- ✅ **Desenvolvimento paralelo** por equipes
+
+### **Padrões de Resiliência**
+
+```mermaid
+graph LR
+    A[Client] --> B[Circuit Breaker]
+    B --> C[Retry Logic]
+    C --> D[Timeout Handler]
+    D --> E[Service]
+    E --> F[Fallback]
+```
 
 ## 🧪 Estratégia de Testes
 

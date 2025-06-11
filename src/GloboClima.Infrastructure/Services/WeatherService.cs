@@ -14,7 +14,9 @@ public class WeatherService : IWeatherService
     public WeatherService(HttpClient httpClient, IConfiguration configuration)
     {
         _httpClient = httpClient;
-        _apiKey = configuration["OpenWeatherMap:ApiKey"] ?? "demo_key_for_testing";
+        _apiKey = Environment.GetEnvironmentVariable("WEATHERAPI_KEY") ?? 
+            configuration["WeatherAPI:ApiKey"] ?? 
+            throw new InvalidOperationException("WeatherAPI key not configured");
         _baseUrl = configuration["WeatherApi:BaseUrl"] ?? "http://api.weatherapi.com/v1";
     }
 
@@ -29,6 +31,8 @@ public class WeatherService : IWeatherService
                 return null;
 
             var json = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"WeatherAPI Response: {json}");
+            
             var weatherApiResponse = JsonSerializer.Deserialize<WeatherApiResponse>(json, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
@@ -43,31 +47,31 @@ public class WeatherService : IWeatherService
                 Name = weatherApiResponse.Location?.Name ?? cityName,
                 Main = new Main
                 {
-                    Temp = weatherApiResponse.Current?.TempC ?? 0,
-                    FeelsLike = weatherApiResponse.Current?.FeelslikeC ?? 0,
-                    TempMin = weatherApiResponse.Current?.TempC ?? 0,
-                    TempMax = weatherApiResponse.Current?.TempC ?? 0,
-                    Pressure = (int)(weatherApiResponse.Current?.PressureMb ?? 0),
-                    Humidity = weatherApiResponse.Current?.Humidity ?? 0
+                    Temp = weatherApiResponse.Current?.temp_c ?? 0,
+                    FeelsLike = weatherApiResponse.Current?.feelslike_c ?? 0,
+                    TempMin = weatherApiResponse.Current?.temp_c ?? 0,
+                    TempMax = weatherApiResponse.Current?.temp_c ?? 0,
+                    Pressure = (int)(weatherApiResponse.Current?.pressure_mb ?? 0),
+                    Humidity = weatherApiResponse.Current?.humidity ?? 0
                 },
                 Weather = new List<WeatherInfo>
                 {
                     new WeatherInfo
                     {
                         Id = 0,
-                        Main = weatherApiResponse.Current?.Condition?.Text ?? "Unknown",
-                        Description = weatherApiResponse.Current?.Condition?.Text ?? "Unknown",
-                        Icon = weatherApiResponse.Current?.Condition?.Icon ?? ""
+                        Main = weatherApiResponse.Current?.condition?.Text ?? "Unknown",
+                        Description = weatherApiResponse.Current?.condition?.Text ?? "Unknown",
+                        Icon = weatherApiResponse.Current?.condition?.Icon ?? ""
                     }
                 },
                 Wind = new Wind
                 {
-                    Speed = weatherApiResponse.Current?.WindKph ?? 0,
-                    Deg = weatherApiResponse.Current?.WindDegree ?? 0
+                    Speed = weatherApiResponse.Current?.wind_kph ?? 0,
+                    Deg = weatherApiResponse.Current?.wind_degree ?? 0
                 },
                 Clouds = new Clouds
                 {
-                    All = weatherApiResponse.Current?.Cloud ?? 0
+                    All = weatherApiResponse.Current?.cloud ?? 0
                 },
                 Sys = new Sys
                 {
@@ -99,6 +103,8 @@ public class WeatherService : IWeatherService
                 return null;
 
             var json = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"WeatherAPI Response: {json}");
+            
             var weatherApiResponse = JsonSerializer.Deserialize<WeatherApiResponse>(json, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
@@ -113,31 +119,31 @@ public class WeatherService : IWeatherService
                 Name = weatherApiResponse.Location?.Name ?? "Unknown",
                 Main = new Main
                 {
-                    Temp = weatherApiResponse.Current?.TempC ?? 0,
-                    FeelsLike = weatherApiResponse.Current?.FeelslikeC ?? 0,
-                    TempMin = weatherApiResponse.Current?.TempC ?? 0,
-                    TempMax = weatherApiResponse.Current?.TempC ?? 0,
-                    Pressure = (int)(weatherApiResponse.Current?.PressureMb ?? 0),
-                    Humidity = weatherApiResponse.Current?.Humidity ?? 0
+                    Temp = weatherApiResponse.Current?.temp_c ?? 0,
+                    FeelsLike = weatherApiResponse.Current?.feelslike_c ?? 0,
+                    TempMin = weatherApiResponse.Current?.temp_c ?? 0,
+                    TempMax = weatherApiResponse.Current?.temp_c ?? 0,
+                    Pressure = (int)(weatherApiResponse.Current?.pressure_mb ?? 0),
+                    Humidity = weatherApiResponse.Current?.humidity ?? 0
                 },
                 Weather = new List<WeatherInfo>
                 {
                     new WeatherInfo
                     {
                         Id = 0,
-                        Main = weatherApiResponse.Current?.Condition?.Text ?? "Unknown",
-                        Description = weatherApiResponse.Current?.Condition?.Text ?? "Unknown",
-                        Icon = weatherApiResponse.Current?.Condition?.Icon ?? ""
+                        Main = weatherApiResponse.Current?.condition?.Text ?? "Unknown",
+                        Description = weatherApiResponse.Current?.condition?.Text ?? "Unknown",
+                        Icon = weatherApiResponse.Current?.condition?.Icon ?? ""
                     }
                 },
                 Wind = new Wind
                 {
-                    Speed = weatherApiResponse.Current?.WindKph ?? 0,
-                    Deg = weatherApiResponse.Current?.WindDegree ?? 0
+                    Speed = weatherApiResponse.Current?.wind_kph ?? 0,
+                    Deg = weatherApiResponse.Current?.wind_degree ?? 0
                 },
                 Clouds = new Clouds
                 {
-                    All = weatherApiResponse.Current?.Cloud ?? 0
+                    All = weatherApiResponse.Current?.cloud ?? 0
                 },
                 Sys = new Sys
                 {
@@ -177,14 +183,14 @@ internal class Location
 
 internal class Current
 {
-    public double TempC { get; set; }
-    public double FeelslikeC { get; set; }
-    public double WindKph { get; set; }
-    public int WindDegree { get; set; }
-    public double PressureMb { get; set; }
-    public int Humidity { get; set; }
-    public int Cloud { get; set; }
-    public Condition? Condition { get; set; }
+    public double temp_c { get; set; }
+    public double feelslike_c { get; set; }
+    public double wind_kph { get; set; }
+    public int wind_degree { get; set; }
+    public double pressure_mb { get; set; }
+    public int humidity { get; set; }
+    public int cloud { get; set; }
+    public Condition? condition { get; set; }
 }
 
 internal class Condition

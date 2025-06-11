@@ -77,7 +77,7 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"JWT parsing error: {ex.Message}");
+            // JWT parsing error - handled silently
         }
         
         return claims;

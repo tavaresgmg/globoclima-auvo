@@ -1,6 +1,9 @@
 @page "/profile"
+@using GloboClima.Application.DTOs.Weather
+@using GloboClima.Application.DTOs.Country
 @inject AuthenticationStateProvider AuthStateProvider
 @inject AuthService AuthService
+@inject ApiService ApiService
 @inject NavigationManager Navigation
 @attribute [Authorize]
 
@@ -24,7 +27,8 @@
                                 <div class="profile-avatar mb-3">
                                     <i class="bi bi-person-circle display-1 text-primary"></i>
                                 </div>
-                                <h5 class="text-muted">@userEmail</h5>
+                                <h4>@userName</h4>
+                                <h6 class="text-muted">@userEmail</h6>
                             </div>
                             <div class="col-md-8">
                                 <h5 class="mb-3">Informações da Conta</h5>
@@ -150,8 +154,9 @@
 
 @code {
     private AuthenticationState? authState;
+    private string userName = "";
     private string userEmail = "";
-    private DateTime memberSince = DateTime.Now.AddDays(-30); // Mock data
+    private DateTime memberSince = DateTime.Now;
     private int weatherFavoritesCount = 0;
     private int countryFavoritesCount = 0;
     
@@ -161,11 +166,29 @@
         
         if (authState.User.Identity?.IsAuthenticated == true)
         {
-            userEmail = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "Usuário";
+            userName = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "Usuário";
+            userEmail = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "email@example.com";
             
-            // TODO: Carregar dados reais dos favoritos
-            // weatherFavoritesCount = await GetWeatherFavoritesCount();
-            // countryFavoritesCount = await GetCountryFavoritesCount();
+            // Load real favorites count
+            await LoadFavoritesCount();
+        }
+    }
+    
+    private async Task LoadFavoritesCount()
+    {
+        try
+        {
+            // Load weather favorites
+            var weatherFavorites = await ApiService.GetAsync<List<WeatherFavoriteResponseDto>>("api/weather/favorites");
+            weatherFavoritesCount = weatherFavorites?.Count ?? 0;
+            
+            // Load country favorites
+            var countryFavorites = await ApiService.GetAsync<List<CountryFavoriteResponseDto>>("api/countries/favorites");
+            countryFavoritesCount = countryFavorites?.Count ?? 0;
+        }
+        catch
+        {
+            // Keep default values if error
         }
     }
     

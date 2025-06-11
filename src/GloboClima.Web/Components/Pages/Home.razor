@@ -1,22 +1,168 @@
 ﻿@page "/"
+@inject NavigationManager Navigation
 
 <PageTitle>GloboClima - Informações Climáticas e Países</PageTitle>
 
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-lg-12">
-            <div class="text-center py-5">
-                <h1 class="display-4 fw-bold mb-3">🌍 Bem-vindo ao GloboClima</h1>
-                <p class="lead text-muted">
-                    Acesse informações climáticas em tempo real e dados detalhados sobre países de todo o mundo
+<div class="hero-section">
+    <div class="container">
+        <div class="row align-items-center py-5" style="min-height: 70vh;">
+            <div class="col-lg-6">
+                <h1 class="display-3 fw-bold mb-4 text-white">
+                    Descubra o mundo com <span class="text-warning">GloboClima</span>
+                </h1>
+                <p class="lead text-white-50 mb-4">
+                    Informações climáticas em tempo real e dados completos sobre países de todo o mundo em um só lugar
                 </p>
+                
+                <div class="hero-features mb-5">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="hero-icon me-3">
+                            <i class="bi bi-thermometer-half"></i>
+                        </div>
+                        <span class="text-white">Temperatura, umidade e condições atuais</span>
+                    </div>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="hero-icon me-3">
+                            <i class="bi bi-flag"></i>
+                        </div>
+                        <span class="text-white">Dados de 195+ países do mundo</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="hero-icon me-3">
+                            <i class="bi bi-heart"></i>
+                        </div>
+                        <span class="text-white">Salve seus locais favoritos</span>
+                    </div>
+                </div>
                 
                 <AuthorizeView>
                     <NotAuthorized>
-                        <div class="mt-4">
-                            <a href="/login" class="btn btn-primary btn-lg me-3">Entrar</a>
-                            <a href="/register" class="btn btn-outline-primary btn-lg">Criar Conta</a>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <button @onclick="@(() => Navigation.NavigateTo("/register"))" class="btn btn-warning btn-lg px-5 py-3 fw-bold">
+                                Começar Agora <i class="bi bi-arrow-right ms-2"></i>
+                            </button>
+                            <button @onclick="@(() => Navigation.NavigateTo("/login"))" class="btn btn-outline-light btn-lg px-5 py-3">
+                                Já tenho conta
+                            </button>
                         </div>
+                    </NotAuthorized>
+                    <Authorized>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <button @onclick="@(() => Navigation.NavigateTo("/weather"))" class="btn btn-warning btn-lg px-5 py-3 fw-bold">
+                                Ver Clima <i class="bi bi-cloud-sun ms-2"></i>
+                            </button>
+                            <button @onclick="@(() => Navigation.NavigateTo("/countries"))" class="btn btn-outline-light btn-lg px-5 py-3">
+                                Explorar Países <i class="bi bi-globe ms-2"></i>
+                            </button>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+            <div class="col-lg-6 d-none d-lg-block">
+                <div class="hero-visual">
+                    <div class="widgets-container">
+                        <!-- Weather Widget - Top Right -->
+                        <div class="floating-widget weather-widget">
+                            <div class="widget-icon">
+                                <i class="bi bi-cloud-sun-fill text-warning"></i>
+                            </div>
+                            <div class="widget-content">
+                                <span class="widget-location">São Paulo, BR</span>
+                                <span class="widget-value">24°</span>
+                                <div class="widget-details">
+                                    <span><i class="bi bi-droplet"></i> 65%</span>
+                                    <span><i class="bi bi-wind"></i> 12 km/h</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Stats Widget - Center -->
+                        <div class="floating-widget stats-widget">
+                            <div class="stats-grid">
+                                <div class="stat">
+                                    <i class="bi bi-globe-americas text-primary"></i>
+                                    <strong>195</strong>
+                                    <small>Países</small>
+                                </div>
+                                <div class="stat">
+                                    <i class="bi bi-building text-success"></i>
+                                    <strong>10k+</strong>
+                                    <small>Cidades</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Country Widget - Bottom Left -->
+                        <div class="floating-widget country-widget">
+                            <img src="https://flagcdn.com/w40/br.png" alt="Brasil" class="country-flag" />
+                            <div class="country-details">
+                                <strong>Brasil</strong>
+                                <small>População: 214M</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Central Globe -->
+                        <div class="central-globe">
+                            <i class="bi bi-globe"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-5">
+    <div class="row g-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="feature-card h-100">
+                <div class="feature-icon weather-icon">
+                    <i class="bi bi-cloud-sun-fill"></i>
+                </div>
+                <h3 class="h4 mb-3">Previsão do Tempo</h3>
+                <p class="text-muted">
+                    Temperatura, umidade, vento e condições atuais de qualquer cidade do mundo
+                </p>
+                <button @onclick="@(() => Navigation.NavigateTo("/weather"))" class="btn btn-link p-0 text-decoration-none text-start">
+                    Consultar Clima <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-4">
+            <div class="feature-card h-100">
+                <div class="feature-icon country-icon">
+                    <i class="bi bi-globe"></i>
+                </div>
+                <h3 class="h4 mb-3">Dados de Países</h3>
+                <p class="text-muted">
+                    População, idiomas, moedas, bandeiras e informações detalhadas
+                </p>
+                <button @onclick="@(() => Navigation.NavigateTo("/countries"))" class="btn btn-link p-0 text-decoration-none text-start">
+                    Explorar Países <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-4">
+            <div class="feature-card h-100">
+                <div class="feature-icon favorite-icon">
+                    <i class="bi bi-heart-fill"></i>
+                </div>
+                <h3 class="h4 mb-3">Favoritos Salvos</h3>
+                <p class="text-muted">
+                    Acesse rapidamente suas cidades e países favoritos
+                </p>
+                <AuthorizeView>
+                    <Authorized>
+                        <button @onclick="@(() => Navigation.NavigateTo("/favorites"))" class="btn btn-link p-0 text-decoration-none text-start">
+                            Ver Favoritos <i class="bi bi-arrow-right ms-1"></i>
+                        </button>
+                    </Authorized>
+                    <NotAuthorized>
+                        <button @onclick="@(() => Navigation.NavigateTo("/register"))" class="btn btn-link p-0 text-decoration-none text-start">
+                            Criar Conta <i class="bi bi-arrow-right ms-1"></i>
+                        </button>
                     </NotAuthorized>
                 </AuthorizeView>
             </div>
@@ -24,48 +170,298 @@
     </div>
     
     <div class="row mt-5">
-        <div class="col-md-6 mb-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body text-center">
-                    <i class="bi bi-cloud-sun-fill text-warning" style="font-size: 3rem;"></i>
-                    <h3 class="card-title mt-3">Previsão do Tempo</h3>
-                    <p class="card-text">
-                        Consulte a previsão do tempo atual e condições climáticas de qualquer cidade do mundo
-                    </p>
-                    <a href="/weather" class="btn btn-primary">Consultar Clima</a>
+        <div class="col-12 text-center">
+            <h2 class="h3 mb-4">Por que escolher o GloboClima?</h2>
+            <div class="row g-4">
+                <div class="col-md-3 col-6">
+                    <div class="stat-card">
+                        <i class="bi bi-globe-americas display-6 text-primary mb-2"></i>
+                        <h3 class="h4 fw-bold text-primary mb-0">195+</h3>
+                        <p class="text-muted mb-0">Países</p>
+                    </div>
                 </div>
-            </div>
-        </div>
-        
-        <div class="col-md-6 mb-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body text-center">
-                    <i class="bi bi-globe text-success" style="font-size: 3rem;"></i>
-                    <h3 class="card-title mt-3">Informações de Países</h3>
-                    <p class="card-text">
-                        Explore dados detalhados sobre países: população, idiomas, moedas e muito mais
-                    </p>
-                    <a href="/countries" class="btn btn-success">Explorar Países</a>
+                <div class="col-md-3 col-6">
+                    <div class="stat-card">
+                        <i class="bi bi-building display-6 text-success mb-2"></i>
+                        <h3 class="h4 fw-bold text-success mb-0">10k+</h3>
+                        <p class="text-muted mb-0">Cidades</p>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="stat-card">
+                        <i class="bi bi-clock-history display-6 text-warning mb-2"></i>
+                        <h3 class="h4 fw-bold text-warning mb-0">Tempo Real</h3>
+                        <p class="text-muted mb-0">Atualizações</p>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="stat-card">
+                        <i class="bi bi-star-fill display-6 text-danger mb-2"></i>
+                        <h3 class="h4 fw-bold text-danger mb-0">Gratuito</h3>
+                        <p class="text-muted mb-0">Para Sempre</p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    
-    <AuthorizeView>
-        <Authorized>
-            <div class="row mt-5">
-                <div class="col-12">
-                    <div class="card bg-light">
-                        <div class="card-body text-center">
-                            <h4>Seus Favoritos</h4>
-                            <p>Acesse rapidamente seus locais e países favoritos salvos</p>
-                            <a href="/favorites" class="btn btn-outline-primary">
-                                <i class="bi bi-heart-fill"></i> Ver Favoritos
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </Authorized>
-    </AuthorizeView>
 </div>
+
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .hero-section::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    
+    .hero-features {
+        font-size: 0.95rem;
+    }
+    
+    .hero-icon {
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fbbf24;
+        font-size: 1.2rem;
+    }
+    
+    .hero-visual {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        min-height: 500px;
+    }
+    
+    .widgets-container {
+        position: relative;
+        width: 500px;
+        height: 500px;
+    }
+    
+    .central-globe {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 200px;
+        color: rgba(255, 255, 255, 0.1);
+        animation: rotate 30s linear infinite;
+    }
+    
+    .floating-widget {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Weather Widget - Top Right */
+    .weather-widget {
+        top: 20px;
+        right: 20px;
+        animation: float 4s ease-in-out infinite;
+    }
+    
+    .widget-icon {
+        font-size: 2rem;
+        margin-bottom: 10px;
+    }
+    
+    .widget-location {
+        display: block;
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 5px;
+    }
+    
+    .widget-value {
+        display: block;
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #333;
+        line-height: 1;
+        margin-bottom: 10px;
+    }
+    
+    .widget-details {
+        display: flex;
+        gap: 15px;
+        font-size: 0.85rem;
+        color: #666;
+    }
+    
+    .widget-details i {
+        font-size: 0.9rem;
+        margin-right: 3px;
+    }
+    
+    /* Stats Widget - Center Left */
+    .stats-widget {
+        left: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        animation: float 4s ease-in-out infinite 1s;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    
+    .stat {
+        text-align: center;
+    }
+    
+    .stat i {
+        display: block;
+        font-size: 2rem;
+        margin-bottom: 8px;
+    }
+    
+    .stat strong {
+        display: block;
+        font-size: 1.5rem;
+        color: #333;
+        margin-bottom: 4px;
+    }
+    
+    .stat small {
+        display: block;
+        font-size: 0.85rem;
+        color: #666;
+    }
+    
+    /* Country Widget - Bottom */
+    .country-widget {
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        animation: float 4s ease-in-out infinite 2s;
+    }
+    
+    .country-flag {
+        width: 48px;
+        height: 36px;
+        border-radius: 8px;
+        object-fit: cover;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .country-details strong {
+        display: block;
+        font-size: 1.1rem;
+        color: #333;
+        margin-bottom: 4px;
+    }
+    
+    .country-details small {
+        display: block;
+        font-size: 0.85rem;
+        color: #666;
+    }
+    
+    @@keyframes float {
+        0%, 100% { transform: translateY(0px) translateX(var(--translate-x, 0)); }
+        50% { transform: translateY(-15px) translateX(var(--translate-x, 0)); }
+    }
+    
+    @@keyframes rotate {
+        from { transform: translate(-50%, -50%) rotate(0deg); }
+        to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    
+    .country-widget {
+        --translate-x: -50%;
+    }
+    
+    .stats-widget {
+        --translate-x: 0;
+    }
+    
+    .feature-card {
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        border: 1px solid #f0f0f0;
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+    
+    .feature-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .weather-icon {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+    }
+    
+    .country-icon {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    
+    .favorite-icon {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: white;
+    }
+    
+    .stat-card {
+        padding: 1.5rem;
+        background: #f8f9fa;
+        border-radius: 15px;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+    
+    .stat-card:hover {
+        transform: scale(1.05);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .btn-warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border: none;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-warning:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(245, 87, 108, 0.3);
+    }
+    
+</style>

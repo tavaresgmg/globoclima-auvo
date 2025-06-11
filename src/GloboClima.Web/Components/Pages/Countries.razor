@@ -146,8 +146,23 @@
             }
             else if (!string.IsNullOrWhiteSpace(searchQuery))
             {
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> Nenhum país encontrado com o termo "@searchQuery"
+                @if (searchQuery.Length < 3)
+                {
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> Digite pelo menos 3 caracteres para pesquisar
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Nenhum país encontrado com o termo "@searchQuery"
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="alert alert-light">
+                    <i class="bi bi-search"></i> Use a barra de pesquisa acima para buscar países por nome ou código
                 </div>
             }
             
@@ -252,7 +267,10 @@
     {
         authState = await AuthStateProvider.GetAuthenticationStateAsync();
         
-        await LoadAllCountries();
+        // Don't load all countries on init - wait for user to search
+        allCountries = new List<CountryResponse>();
+        filteredCountries = new List<CountryResponse>();
+        displayedCountries = new List<CountryResponse>();
         
         if (authState.User.Identity?.IsAuthenticated == true)
         {
@@ -267,7 +285,7 @@
         
         try
         {
-            var result = await ApiService.GetAsync<List<CountryResponse>>("api/countries/search?name=");
+            var result = await ApiService.GetAsync<List<CountryResponse>>("api/countries/all");
             allCountries = result ?? new List<CountryResponse>();
             filteredCountries = allCountries;
             UpdateDisplayedCountries();
@@ -275,7 +293,7 @@
         catch (Exception ex)
         {
             errorMessage = "Erro ao carregar países. Tente novamente mais tarde.";
-            Console.WriteLine($"Load countries error: {ex.Message}");
+            // Load countries error - error message already displayed
         }
         finally
         {
@@ -300,47 +318,62 @@
     {
         if (string.IsNullOrWhiteSpace(searchQuery))
         {
-            filteredCountries = allCountries;
+            // Clear results when search is empty
+            filteredCountries = new List<CountryResponse>();
+            displayedCountries = new List<CountryResponse>();
+            currentPage = 1;
+            totalPages = 1;
+            return;
         }
-        else
+        
+        // Only search if query has 3 or more characters
+        if (searchQuery.Length < 3)
         {
-            isLoading = true;
-            errorMessage = string.Empty;
+            // Show message to user that they need to type more
+            filteredCountries = new List<CountryResponse>();
+            displayedCountries = new List<CountryResponse>();
+            currentPage = 1;
+            totalPages = 1;
+            return;
+        }
+        
+        isLoading = true;
+        errorMessage = string.Empty;
+        
+        try
+        {
+            // Don't load all countries - just search directly
             
-            try
+            // For exactly 2 or 3 characters, try country code first
+            if (searchQuery.Length == 2 || searchQuery.Length == 3)
             {
-                // Tentar buscar por código primeiro
-                if (searchQuery.Length == 2 || searchQuery.Length == 3)
+                var countryByCode = await ApiService.GetAsync<CountryResponse>($"api/countries/{searchQuery}");
+                if (countryByCode != null)
                 {
-                    var countryByCode = await ApiService.GetAsync<CountryResponse>($"api/countries/{searchQuery}");
-                    if (countryByCode != null)
-                    {
-                        filteredCountries = new List<CountryResponse> { countryByCode };
-                    }
-                    else
-                    {
-                        // Se não encontrou por código, buscar por nome
-                        var result = await ApiService.GetAsync<List<CountryResponse>>($"api/countries/search?name={Uri.EscapeDataString(searchQuery)}");
-                        filteredCountries = result ?? new List<CountryResponse>();
-                    }
+                    filteredCountries = new List<CountryResponse> { countryByCode };
                 }
                 else
                 {
-                    // Buscar por nome
+                    // If not found by code, search by name
                     var result = await ApiService.GetAsync<List<CountryResponse>>($"api/countries/search?name={Uri.EscapeDataString(searchQuery)}");
                     filteredCountries = result ?? new List<CountryResponse>();
                 }
             }
-            catch (Exception ex)
+            else
             {
-                errorMessage = "Erro ao buscar países.";
-                Console.WriteLine($"Search error: {ex.Message}");
-                filteredCountries = new List<CountryResponse>();
+                // For longer queries, search by name
+                var result = await ApiService.GetAsync<List<CountryResponse>>($"api/countries/search?name={Uri.EscapeDataString(searchQuery)}");
+                filteredCountries = result ?? new List<CountryResponse>();
             }
-            finally
-            {
-                isLoading = false;
-            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Erro ao buscar países.";
+            filteredCountries = new List<CountryResponse>();
+        }
+        finally
+        {
+            isLoading = false;
         }
         
         ApplyFilter();
@@ -392,7 +425,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading favorites: {ex.Message}");
+            // Error loading favorites - handled silently
         }
         finally
         {
@@ -431,7 +464,7 @@
         catch (Exception ex)
         {
             errorMessage = "Erro ao adicionar aos favoritos.";
-            Console.WriteLine($"Add favorite error: {ex.Message}");
+            // Add favorite error - error message already displayed
         }
         finally
         {
@@ -468,7 +501,7 @@
         catch (Exception ex)
         {
             errorMessage = "Erro ao remover dos favoritos.";
-            Console.WriteLine($"Delete favorite error: {ex.Message}");
+            // Delete favorite error - error message already displayed
         }
         finally
         {

@@ -52,7 +52,7 @@ public class AuthService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Login error: {ex.Message}");
+            // Login error - handled by return false
         }
         
         return false;
@@ -86,7 +86,7 @@ public class AuthService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Register error: {ex.Message}");
+            // Register error - handled by return false
         }
         
         return false;

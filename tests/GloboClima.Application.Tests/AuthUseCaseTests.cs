@@ -47,7 +47,7 @@ public class AuthUseCaseTests
         _authServiceMock.Setup(x => x.VerifyPassword(loginRequest.Password, user.PasswordHash))
             .Returns(true);
 
-        _authServiceMock.Setup(x => x.GenerateJwtTokenAsync(user.Id, user.Email))
+        _authServiceMock.Setup(x => x.GenerateJwtTokenAsync(user.Id, user.Email, user.FirstName, user.LastName))
             .ReturnsAsync("jwt-token");
 
         // Act

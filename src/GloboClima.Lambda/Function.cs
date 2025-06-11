@@ -51,13 +51,15 @@ public class Function
         // Configuration for Lambda
         var configuration = new Dictionary<string, string>
         {
-            {"Jwt:Secret", "AUVO-SUPER-SECRET-KEY-FOR-JWT-TOKENS-2024-GLOBOCLIMA-TEST"},
-            {"Jwt:Issuer", "GloboClima"},
-            {"Jwt:Audience", "GloboClima"},
-            {"Jwt:ExpirationMinutes", "60"},
-            {"OpenWeatherMap:ApiKey", "50ad4ee7dfb040bba30170921251006"},
+            {"Jwt:Secret", Environment.GetEnvironmentVariable("JWT_SECRET") ?? throw new InvalidOperationException("JWT_SECRET not configured")},
+            {"Jwt:Issuer", Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "GloboClima"},
+            {"Jwt:Audience", Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "GloboClima"},
+            {"Jwt:ExpirationMinutes", Environment.GetEnvironmentVariable("JWT_EXPIRATION_MINUTES") ?? "60"},
+            {"OpenWeatherMap:ApiKey", Environment.GetEnvironmentVariable("OPENWEATHERMAP_API_KEY") ?? ""},
+            {"WeatherApi:ApiKey", Environment.GetEnvironmentVariable("WEATHERAPI_KEY") ?? ""},
             {"WeatherApi:BaseUrl", "http://api.weatherapi.com/v1"},
-            {"CountriesApi:BaseUrl", "https://restcountries.com/v3.1"}
+            {"CountriesApi:BaseUrl", "https://restcountries.com/v3.1"},
+            {"WeatherService:UseOpenWeatherMap", Environment.GetEnvironmentVariable("USE_OPENWEATHERMAP") ?? "false"}
         };
         
         var configBuilder = new ConfigurationBuilder();

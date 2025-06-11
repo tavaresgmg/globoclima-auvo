@@ -2,6 +2,38 @@
 
 Sistema completo de consulta de clima e países com gerenciamento de favoritos, desenvolvido para o teste técnico de Desenvolvedor Fullstack .NET.
 
+## 📸 Screenshots
+
+<p align="center">
+  <img src="docs/images/inicio.png" alt="Página Inicial" width="800"/>
+  <br/>
+  <em>Página inicial com widgets interativos</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/temperatura.png" alt="Consulta de Temperatura" width="800"/>
+  <br/>
+  <em>Consulta de temperatura e clima</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/paises.png" alt="Busca de Países" width="800"/>
+  <br/>
+  <em>Busca e informações de países</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/favoritos.png" alt="Favoritos" width="800"/>
+  <br/>
+  <em>Gerenciamento de favoritos</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/perfil.png" alt="Perfil do Usuário" width="800"/>
+  <br/>
+  <em>Perfil do usuário</em>
+</p>
+
 ## 🚀 Demonstração Online
 
 - **API REST**: https://3ei1klgibg.execute-api.us-east-1.amazonaws.com/prod
@@ -142,6 +174,10 @@ O deploy é feito automaticamente via GitHub Actions ao fazer push para main.
    - CI/CD com GitHub Actions
    - Terraform para IaC
    - Deploy automatizado no push para main
+
+## 🤝 Contributing
+
+Interested in contributing to GloboClima? Please read our [Contributing Guidelines](docs/CONTRIBUTING.md) for details on our code of conduct, development process, and how to submit pull requests.
 
 ## 📝 Observações Finais
 

@@ -25,20 +25,29 @@ public class UserRepository : IUserRepository
     {
         try
         {
-            // Use scan with condition as GSI query requires non-consistent reads
-            var scanConditions = new List<ScanCondition>
+            // Use Query with GSI for better performance
+            var queryConfig = new QueryOperationConfig
             {
-                new ScanCondition("Email", ScanOperator.Equal, email)
+                IndexName = "email-index",
+                KeyExpression = new Expression
+                {
+                    ExpressionStatement = "Email = :email",
+                    ExpressionAttributeValues = new Dictionary<string, DynamoDBEntry>
+                    {
+                        {":email", email}
+                    }
+                },
+                ConsistentRead = false // GSI requires eventual consistency
             };
-            var search = _context.ScanAsync<DynamoUser>(scanConditions);
-            var allUsers = await search.GetRemainingAsync();
-            var dynamoUser = allUsers.FirstOrDefault();
+            
+            var search = _context.FromQueryAsync<DynamoUser>(queryConfig);
+            var results = await search.GetRemainingAsync();
+            var dynamoUser = results.FirstOrDefault();
             return dynamoUser == null ? null : MapToDomain(dynamoUser);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Return null on error to allow registration to proceed
-            Console.WriteLine($"Error getting user by email: {ex.Message}");
             return null;
         }
     }

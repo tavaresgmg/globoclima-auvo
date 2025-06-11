@@ -15,7 +15,7 @@
                         <div class="dropdown">
                             <button class="btn btn-link text-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="bi bi-person-circle me-2"></i>
-                                @context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                                @context.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li><a class="dropdown-item" href="/profile"><i class="bi bi-person me-2"></i>Meu Perfil</a></li>
@@ -28,7 +28,6 @@
                 </Authorized>
                 <NotAuthorized>
                     <div>
-                        <a href="/login" class="btn btn-sm btn-primary me-2">Entrar</a>
                         <a href="/register" class="btn btn-sm btn-outline-light">Cadastrar</a>
                     </div>
                 </NotAuthorized>

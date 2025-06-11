@@ -62,27 +62,20 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
     
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
-    
-    - name: Build, tag, and push API image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: globoclima-api
-        IMAGE_TAG: ${{ github.sha }}
+    - name: Build API Docker image
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f src/GloboClima.Api/Dockerfile .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        docker build -t globoclima-api:${{ github.sha }} -f src/GloboClima.Api/Dockerfile .
+        docker save globoclima-api:${{ github.sha }} > api-image.tar
+    
+    - name: Upload API image artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: api-docker-image
+        path: api-image.tar
+        retention-days: 1
 
   build-web:
     name: Build Web Docker Image
@@ -93,27 +86,20 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
     
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
-    
-    - name: Build, tag, and push Web image
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: globoclima-web
-        IMAGE_TAG: ${{ github.sha }}
+    - name: Build Web Docker image
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f src/GloboClima.Web/Dockerfile .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        docker build -t globoclima-web:${{ github.sha }} -f src/GloboClima.Web/Dockerfile .
+        docker save globoclima-web:${{ github.sha }} > web-image.tar
+    
+    - name: Upload Web image artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: web-docker-image
+        path: web-image.tar
+        retention-days: 1
 
   deploy-infrastructure:
     name: Deploy Infrastructure
@@ -141,12 +127,12 @@ jobs:
       working-directory: ./infrastructure
     
     - name: Terraform Plan
-      run: terraform plan -var="api_image_uri=${{ secrets.ECR_REGISTRY }}/globoclima-api:${{ github.sha }}" -var="web_image_uri=${{ secrets.ECR_REGISTRY }}/globoclima-web:${{ github.sha }}"
+      run: terraform plan
       working-directory: ./infrastructure
     
     - name: Terraform Apply
       if: github.ref == 'refs/heads/main'
-      run: terraform apply -auto-approve -var="api_image_uri=${{ secrets.ECR_REGISTRY }}/globoclima-api:${{ github.sha }}" -var="web_image_uri=${{ secrets.ECR_REGISTRY }}/globoclima-web:${{ github.sha }}"
+      run: terraform apply -auto-approve
       working-directory: ./infrastructure
 
   security-scan:
